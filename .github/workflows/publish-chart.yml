@@ -1,0 +1,76 @@
+name: Publish Helm chart
+
+on:
+  push:
+    tags:
+      - 'chart-v*'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-helm-chart-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint chart
+        run: helm lint . --set opentakserver.fqdn=example.invalid --set ingress.tlsSecret=example-tls
+
+      - name: Render chart
+        run: helm template opentakserver . --set opentakserver.fqdn=example.invalid --set ingress.tlsSecret=example-tls > /tmp/opentakserver-rendered.yaml
+
+      - name: Package chart
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          helm package . --destination dist
+          package_path="$(find dist -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          test -n "$package_path"
+          echo "path=$package_path" >> "$GITHUB_OUTPUT"
+          echo "version=$(helm show chart "$package_path" | awk '$1 == "version:" {print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          CHART_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          set -euo pipefail
+          expected_version="${GITHUB_REF_NAME#chart-v}"
+          test "$expected_version" = "$CHART_VERSION" || {
+            echo "Tag $GITHUB_REF_NAME does not match chart version $CHART_VERSION" >&2
+            exit 1
+          }
+
+      - name: Upload packaged chart artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opentakserver-chart-${{ steps.package.outputs.version }}
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Log in to GHCR
+        env:
+          HELM_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$HELM_REGISTRY_PASSWORD" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Push chart to GHCR as OCI
+        env:
+          CHART_PACKAGE: ${{ steps.package.outputs.path }}
+          OCI_REPOSITORY: ghcr.io/${{ github.repository_owner }}/charts
+        run: helm push "$CHART_PACKAGE" "oci://$OCI_REPOSITORY"
