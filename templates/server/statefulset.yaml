@@ -1,0 +1,355 @@
+{{- include "opentakserver.validateValues" . -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "opentakserver.server.fullname" . }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: server
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
+  {{- end }}
+spec:
+  serviceName: {{ include "opentakserver.server.fullname" . }}
+  replicas: 1
+  revisionHistoryLimit: 3
+  {{- if .Values.server.updateStrategy }}
+  updateStrategy: {{- toYaml .Values.server.updateStrategy | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: server
+        {{- if .Values.server.podLabels }}
+        {{- include "common.tplvalues.render" (dict "value" .Values.server.podLabels "context" $) | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- if .Values.mediamtx.enabled }}
+        checksum/mediamtx-config: {{ include (print $.Template.BasePath "/mediamtx/configmap.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.nginxProxy.enabled }}
+        checksum/nginx-config: {{ include (print $.Template.BasePath "/nginx-proxy/configmap.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.server.podAnnotations }}
+        {{- include "common.tplvalues.render" (dict "value" .Values.server.podAnnotations "context" $) | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "opentakserver.serviceAccountName" . }}
+      {{- include "opentakserver.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.server.priorityClassName }}
+      priorityClassName: {{ .Values.server.priorityClassName | quote }}
+      {{- end }}
+      {{- if .Values.server.podSecurityContext.enabled }}
+      securityContext: {{- omit .Values.server.podSecurityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      {{- with .Values.server.nodeSelector }}
+      nodeSelector: {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+      {{- end }}
+      {{- with .Values.server.affinity }}
+      affinity: {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+      {{- end }}
+      {{- with .Values.server.tolerations }}
+      tolerations: {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.server.terminationGracePeriodSeconds }}
+      {{- if or .Values.server.waitForDependencies .Values.server.initContainers }}
+      initContainers:
+        {{- if .Values.server.waitForDependencies }}
+        - name: wait-for-dependencies
+          image: {{ include "opentakserver.server.image" . }}
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          {{- if .Values.server.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.server.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          command:
+            - python3
+            - -c
+            - |
+              import socket, sys, time
+              targets = [
+                  ({{ include "opentakserver.database.host" . | quote }}, {{ include "opentakserver.database.port" . }}),
+                  ({{ include "opentakserver.rabbitmq.host" . | quote }}, {{ ternary .Values.rabbitmq.service.port .Values.externalRabbitmq.port .Values.rabbitmq.enabled }}),
+              ]
+              for host, port in targets:
+                  deadline = time.time() + 300
+                  while True:
+                      try:
+                          with socket.create_connection((host, int(port)), timeout=5):
+                              print(f"{host}:{port} is up", flush=True)
+                          break
+                      except OSError as exc:
+                          if time.time() > deadline:
+                              print(f"timed out waiting for {host}:{port}: {exc}", flush=True)
+                              sys.exit(1)
+                          time.sleep(3)
+          {{- with .Values.server.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+        {{- with .Values.server.initContainers }}
+        {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: opentakserver
+          image: {{ include "opentakserver.server.image" . }}
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          {{- if .Values.server.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.server.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- with .Values.server.command }}
+          command: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.server.args }}
+          args: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          env:
+            {{- include "opentakserver.commonEnv" . | nindent 12 }}
+            {{- with .Values.server.extraEnvVars }}
+            {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}
+            {{- end }}
+          {{- if or .Values.opentakserver.extraEnvVarsCM .Values.opentakserver.extraEnvVarsSecret }}
+          envFrom:
+            {{- include "opentakserver.commonEnvFrom" . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.ports.http }}
+              protocol: TCP
+          {{- if and (not .Values.diagnosticMode.enabled) .Values.server.startupProbe.enabled }}
+          startupProbe:
+            {{- if .Values.server.customStartupProbe }}
+            {{- include "common.tplvalues.render" (dict "value" .Values.server.customStartupProbe "context" $) | nindent 12 }}
+            {{- else }}
+            httpGet:
+              path: /api/health
+              port: http
+            {{- omit .Values.server.startupProbe "enabled" | toYaml | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- if and (not .Values.diagnosticMode.enabled) .Values.server.livenessProbe.enabled }}
+          livenessProbe:
+            {{- if .Values.server.customLivenessProbe }}
+            {{- include "common.tplvalues.render" (dict "value" .Values.server.customLivenessProbe "context" $) | nindent 12 }}
+            {{- else }}
+            httpGet:
+              path: /api/health
+              port: http
+            {{- omit .Values.server.livenessProbe "enabled" | toYaml | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- if and (not .Values.diagnosticMode.enabled) .Values.server.readinessProbe.enabled }}
+          readinessProbe:
+            {{- if .Values.server.customReadinessProbe }}
+            {{- include "common.tplvalues.render" (dict "value" .Values.server.customReadinessProbe "context" $) | nindent 12 }}
+            {{- else }}
+            httpGet:
+              path: /api/health
+              port: http
+            {{- omit .Values.server.readinessProbe "enabled" | toYaml | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.server.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.dataFolder }}
+            {{- with .Values.server.extraVolumeMounts }}
+            {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}
+            {{- end }}
+        {{- if .Values.server.cotParser.enabled }}
+        - name: cot-parser
+          image: {{ include "opentakserver.cotParser.image" . }}
+          imagePullPolicy: {{ .Values.server.cotParser.image.pullPolicy }}
+          {{- if .Values.server.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.server.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- end }}
+          env:
+            {{- include "opentakserver.commonEnv" . | nindent 12 }}
+          {{- if or .Values.opentakserver.extraEnvVarsCM .Values.opentakserver.extraEnvVarsSecret }}
+          envFrom:
+            {{- include "opentakserver.commonEnvFrom" . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.server.cotParser.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.dataFolder }}
+            {{- with .Values.server.extraVolumeMounts }}
+            {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 12 }}
+            {{- end }}
+        {{- end }}
+        {{- if .Values.server.eudHandler.enabled }}
+        - name: eud-handler
+          image: {{ include "opentakserver.eudHandler.image" . }}
+          imagePullPolicy: {{ .Values.server.eudHandler.image.pullPolicy }}
+          {{- if .Values.server.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.server.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- end }}
+          env:
+            {{- include "opentakserver.commonEnv" . | nindent 12 }}
+          {{- if or .Values.opentakserver.extraEnvVarsCM .Values.opentakserver.extraEnvVarsSecret }}
+          envFrom:
+            {{- include "opentakserver.commonEnvFrom" . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: cot-tcp
+              containerPort: {{ .Values.server.eudHandler.containerPort }}
+              protocol: TCP
+          {{- with .Values.server.eudHandler.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.dataFolder }}
+        {{- end }}
+        {{- if .Values.server.eudHandlerSsl.enabled }}
+        - name: eud-handler-ssl
+          image: {{ include "opentakserver.eudHandlerSsl.image" . }}
+          imagePullPolicy: {{ .Values.server.eudHandlerSsl.image.pullPolicy }}
+          {{- if .Values.server.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.server.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- end }}
+          env:
+            {{- include "opentakserver.commonEnv" . | nindent 12 }}
+          {{- if or .Values.opentakserver.extraEnvVarsCM .Values.opentakserver.extraEnvVarsSecret }}
+          envFrom:
+            {{- include "opentakserver.commonEnvFrom" . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: cot-ssl
+              containerPort: {{ .Values.server.eudHandlerSsl.containerPort }}
+              protocol: TCP
+          {{- with .Values.server.eudHandlerSsl.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.dataFolder }}
+        {{- end }}
+        {{- if .Values.mediamtx.enabled }}
+        - name: mediamtx
+          image: {{ include "opentakserver.mediamtx.image" . }}
+          imagePullPolicy: {{ .Values.mediamtx.image.pullPolicy }}
+          {{- if .Values.mediamtx.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.mediamtx.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          args: ["/config/mediamtx.yml"]
+          env:
+            - name: OTS_MEDIAMTX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "opentakserver.secretName" . }}
+                  key: mediamtx-token
+          ports:
+            - name: mtx-api
+              containerPort: {{ .Values.mediamtx.apiPort }}
+            - name: mtx-rtsp
+              containerPort: 8554
+            - name: mtx-rtmp
+              containerPort: 1935
+            - name: mtx-rtmps
+              containerPort: 1936
+            - name: mtx-hls
+              containerPort: 8888
+            - name: mtx-webrtc
+              containerPort: 8889
+            - name: mtx-webrtc-ice
+              containerPort: 8189
+              protocol: UDP
+            - name: mtx-srt
+              containerPort: 8890
+              protocol: UDP
+          {{- with .Values.mediamtx.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: mediamtx-config
+              mountPath: /config
+            - name: data
+              mountPath: {{ .Values.persistence.dataFolder }}
+        {{- end }}
+        {{- if .Values.nginxProxy.enabled }}
+        - name: nginx-proxy
+          image: {{ include "opentakserver.nginxProxy.image" . }}
+          imagePullPolicy: {{ .Values.nginxProxy.image.pullPolicy }}
+          {{- if .Values.nginxProxy.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.nginxProxy.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          command: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
+          ports:
+            - name: tak-marti
+              containerPort: 8443
+            - name: tak-enroll
+              containerPort: 8446
+            - name: tak-mqtts
+              containerPort: 8883
+          livenessProbe:
+            tcpSocket:
+              port: 8443
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          {{- with .Values.nginxProxy.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-config
+              mountPath: /etc/nginx/ots
+            - name: data
+              mountPath: {{ .Values.persistence.dataFolder }}
+              readOnly: true
+            - name: nginx-tmp
+              mountPath: /tmp
+        {{- end }}
+        {{- with .Values.server.sidecars }}
+        {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default (printf "%s-data" (include "common.names.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.mediamtx.enabled }}
+        - name: mediamtx-config
+          configMap:
+            name: {{ printf "%s-mediamtx" (include "common.names.fullname" .) }}
+        {{- end }}
+        {{- if .Values.nginxProxy.enabled }}
+        - name: nginx-config
+          configMap:
+            name: {{ include "opentakserver.nginxProxy.fullname" . }}
+        - name: nginx-tmp
+          emptyDir: {}
+        {{- end }}
+        {{- with .Values.server.extraVolumes }}
+        {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+        {{- end }}

@@ -1,0 +1,88 @@
+{{- if .Values.ingress.enabled }}
+{{- $fullName := include "common.names.fullname" . -}}
+{{- $svcServer := include "opentakserver.server.fullname" . -}}
+{{- $svcWebui := include "opentakserver.webui.fullname" . -}}
+{{- $host := include "opentakserver.ingress.hostname" . -}}
+{{- $apiPort := .Values.service.ports.http -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.certManager.enabled }}
+    {{- if .Values.ingress.certManager.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.certManager.clusterIssuer | quote }}
+    {{- else if .Values.ingress.certManager.issuer }}
+    cert-manager.io/issuer: {{ .Values.ingress.certManager.issuer | quote }}
+    {{- end }}
+    {{- end }}
+    {{- with .Values.commonAnnotations }}
+    {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.ingressClassName }}
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  {{- end }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          {{- range .Values.ingress.apiPaths }}
+          - path: {{ . }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $svcServer }}
+                port:
+                  number: {{ $apiPort }}
+          {{- end }}
+          {{- if and .Values.mediamtx.enabled .Values.mediamtx.service.enabled }}
+          - path: /hls
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ printf "%s-mediamtx" $fullName }}
+                port:
+                  number: {{ .Values.mediamtx.service.ports.hls }}
+          - path: /webrtc
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ printf "%s-mediamtx" $fullName }}
+                port:
+                  number: {{ .Values.mediamtx.service.ports.webrtc }}
+          {{- end }}
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
+            backend:
+              service:
+                {{- if .Values.webui.enabled }}
+                name: {{ $svcWebui }}
+                port:
+                  number: {{ .Values.webui.service.port }}
+                {{- else }}
+                name: {{ $svcServer }}
+                port:
+                  number: {{ $apiPort }}
+                {{- end }}
+          {{- with .Values.ingress.extraRules }}
+          {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 10 }}
+          {{- end }}
+    {{- with .Values.ingress.extraHosts }}
+    {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ $host | quote }}
+      secretName: {{ .Values.ingress.tlsSecret | default (printf "%s-ingress-tls" $fullName) }}
+    {{- with .Values.ingress.extraTls }}
+    {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

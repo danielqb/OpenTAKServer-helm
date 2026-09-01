@@ -1,0 +1,92 @@
+{{- if .Values.nginxProxy.enabled }}
+{{- $data := .Values.persistence.dataFolder -}}
+{{- $fqdn := include "opentakserver.fqdn" . | default "_" -}}
+{{- $body := .Values.nginxProxy.clientMaxBodySize -}}
+{{- $apiPort := .Values.service.ports.http -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opentakserver.nginxProxy.fullname" . }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: nginx-proxy
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
+  {{- end }}
+data:
+  nginx.conf: |
+    worker_processes auto;
+    pid /tmp/nginx.pid;
+    error_log /dev/stderr warn;
+    events { worker_connections 1024; }
+
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      access_log /dev/stdout;
+      server_tokens off;
+      client_body_temp_path /tmp/client_body;
+      proxy_temp_path /tmp/proxy;
+      fastcgi_temp_path /tmp/fastcgi;
+      uwsgi_temp_path /tmp/uwsgi;
+      scgi_temp_path /tmp/scgi;
+      proxy_http_version 1.1;
+      proxy_set_header Cookie $http_cookie;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      include /etc/nginx/ots/http-*.conf;
+    }
+
+    stream {
+      include /etc/nginx/ots/stream-*.conf;
+    }
+
+  http-8443-marti.conf: |
+    # Marti API - mutual TLS required (ATAK/iTAK data sync & CoT over TLS)
+    server {
+      listen 8443 ssl;
+      server_name {{ $fqdn }};
+      client_max_body_size {{ $body }};
+
+      ssl_client_certificate {{ $data }}/ca/ca.pem;
+      ssl_certificate {{ $data }}/ca/certs/opentakserver/opentakserver.pem;
+      ssl_certificate_key {{ $data }}/ca/certs/opentakserver/opentakserver.nopass.key;
+      ssl_verify_client on;
+
+      location /Marti/api/tls { return 404; }
+
+      location /Marti {
+        proxy_set_header X-Ssl-Cert $ssl_client_escaped_cert;
+        proxy_pass http://127.0.0.1:{{ $apiPort }};
+      }
+    }
+
+  http-8446-enroll.conf: |
+    # Automatic certificate enrollment
+    server {
+      listen 8446 ssl;
+      server_name {{ $fqdn }};
+      client_max_body_size {{ $body }};
+
+      ssl_certificate {{ $data }}/ca/certs/opentakserver/opentakserver.pem;
+      ssl_certificate_key {{ $data }}/ca/certs/opentakserver/opentakserver.nopass.key;
+
+      location / { return 403; }
+
+      location /Marti/api/tls {
+        proxy_pass http://127.0.0.1:{{ $apiPort }};
+      }
+    }
+
+  stream-8883-mqtts.conf: |
+    # MQTTS -> RabbitMQ MQTT listener
+    server {
+      listen 8883 ssl;
+      proxy_pass {{ include "opentakserver.rabbitmq.host" . }}:1883;
+      ssl_client_certificate {{ $data }}/ca/ca.pem;
+      ssl_certificate {{ $data }}/ca/certs/opentakserver/opentakserver.pem;
+      ssl_certificate_key {{ $data }}/ca/certs/opentakserver/opentakserver.nopass.key;
+    }
+{{- end }}

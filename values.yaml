@@ -1,0 +1,769 @@
+## @section Global parameters
+##
+global:
+  ## @param global.imageRegistry Global Docker image registry (applies to OTS images unless overridden per component)
+  imageRegistry: ""
+  ## @param global.imagePullSecrets Global Docker registry secret names as an array
+  imagePullSecrets: []
+  ## @param global.storageClass Global StorageClass for Persistent Volume(s)
+  storageClass: ""
+  ## @param global.defaultStorageClass Global default StorageClass for Persistent Volume(s)
+  defaultStorageClass: ""
+
+## @section Common parameters
+##
+## @param kubeVersion Override Kubernetes version
+kubeVersion: ""
+## @param nameOverride String to partially override common.names.fullname
+nameOverride: ""
+## @param fullnameOverride String to fully override common.names.fullname
+fullnameOverride: ""
+## @param namespaceOverride String to fully override common.names.namespace
+namespaceOverride: ""
+## @param commonLabels Labels to add to all deployed objects
+commonLabels: {}
+## @param commonAnnotations Annotations to add to all deployed objects
+commonAnnotations: {}
+## @param clusterDomain Kubernetes cluster domain name
+clusterDomain: cluster.local
+## @param extraDeploy Array of extra objects to deploy with the release
+extraDeploy: []
+## @param diagnosticMode.enabled Enable diagnostic mode (all probes disabled and command overridden) for the server pod
+## @param diagnosticMode.command Command to override all containers in the server pod
+## @param diagnosticMode.args Args to override all containers in the server pod
+diagnosticMode:
+  enabled: false
+  command:
+    - sleep
+  args:
+    - infinity
+
+## @section OpenTAKServer configuration
+##
+opentakserver:
+  ## @param opentakserver.fqdn Public fully-qualified domain name clients use to reach this server. REQUIRED for TAK clients.
+  ## Written to OTS_FQDN and used for the Ingress host and TLS certificate when those are not set explicitly.
+  fqdn: ""
+  ## @param opentakserver.debug Enable OpenTAKServer debug mode (DEBUG=True)
+  debug: false
+
+  ## OpenTAKServer secrets. When a value is empty a random one is generated on first install and
+  ## persisted in the chart-managed Secret (Bitnami common.secrets.passwords.manage semantics).
+  ## @param opentakserver.secretKey Flask SECRET_KEY. Auto-generated when empty.
+  secretKey: ""
+  ## @param opentakserver.existingSecret Name of an existing Secret with keys `secret-key`, `ca-password`, `mediamtx-token`
+  existingSecret: ""
+
+  ## Certificate Authority settings (OTS generates its own CA on first boot)
+  ca:
+    ## @param opentakserver.ca.password Password protecting the OTS-generated CA key (OTS_CA_PASSWORD). Auto-generated when empty.
+    password: ""
+    ## @param opentakserver.ca.name Common name of the generated CA (OTS_CA_NAME)
+    name: OpenTAKServer-CA
+    ## @param opentakserver.ca.expirationDays CA / certificate validity in days (OTS_CA_EXPIRATION_TIME)
+    expirationDays: 3650
+    ## @param opentakserver.ca.country X.509 subject country (OTS_CA_COUNTRY)
+    country: WW
+    ## @param opentakserver.ca.state X.509 subject state (OTS_CA_STATE)
+    state: XX
+    ## @param opentakserver.ca.city X.509 subject city (OTS_CA_CITY)
+    city: YY
+    ## @param opentakserver.ca.organization X.509 subject organization (OTS_CA_ORGANIZATION)
+    organization: ZZ
+    ## @param opentakserver.ca.organizationalUnit X.509 subject OU (OTS_CA_ORGANIZATIONAL_UNIT)
+    organizationalUnit: OpenTAKServer
+
+  ## @param opentakserver.extraEnvVars Array with extra environment variables for all OpenTAKServer containers
+  ## e.g:
+  ## extraEnvVars:
+  ##   - name: OTS_ENABLE_EMAIL
+  ##     value: "false"
+  extraEnvVars: []
+  ## @param opentakserver.extraEnvVarsCM Name of existing ConfigMap with extra env vars for OpenTAKServer containers
+  extraEnvVarsCM: ""
+  ## @param opentakserver.extraEnvVarsSecret Name of existing Secret with extra env vars for OpenTAKServer containers
+  extraEnvVarsSecret: ""
+
+## @section OpenTAKServer server (appliance pod) parameters
+##
+## All tightly-coupled OpenTAKServer processes that share the data folder run as containers
+## in a single StatefulSet pod (server, cot-parser, eud-handler, eud-handler-ssl, and
+## optionally mediamtx and nginx-proxy). OpenTAKServer is a single-instance application and
+## cannot be horizontally scaled, so replicaCount is fixed at 1.
+server:
+  ## Main OpenTAKServer API container
+  image:
+    ## @param server.image.registry OpenTAKServer image registry
+    registry: ghcr.io
+    ## @param server.image.repository OpenTAKServer image repository
+    repository: brian7704/opentakserver
+    ## @param server.image.tag OpenTAKServer image tag (immutable tags are recommended)
+    tag: 1.7.13
+    ## @param server.image.digest OpenTAKServer image digest, takes precedence over tag when set
+    digest: ""
+    ## @param server.image.pullPolicy OpenTAKServer image pull policy
+    pullPolicy: IfNotPresent
+    ## @param server.image.pullSecrets OpenTAKServer image pull secrets
+    pullSecrets: []
+
+  ## @param server.waitForDependencies Add an init container that blocks until the database and RabbitMQ accept TCP connections
+  waitForDependencies: true
+  ## @param server.command Override the server container entrypoint
+  command: []
+  ## @param server.args Override the server container args
+  args: []
+  ## @param server.extraEnvVars Extra env vars for the server container only
+  extraEnvVars: []
+  ## @param server.podAnnotations Annotations for the server pod
+  podAnnotations: {}
+  ## @param server.podLabels Extra labels for the server pod
+  podLabels: {}
+  ## @param server.priorityClassName Priority class name for the server pod
+  priorityClassName: ""
+  ## @param server.nodeSelector Node labels for pod assignment
+  nodeSelector: {}
+  ## @param server.tolerations Tolerations for pod assignment
+  tolerations: []
+  ## @param server.affinity Affinity for pod assignment
+  affinity: {}
+  ## @param server.podSecurityContext.enabled Enable pod security context
+  ## @param server.podSecurityContext.fsGroup Group ID for the volumes of the pod
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1024
+    fsGroupChangePolicy: OnRootMismatch
+  ## @param server.containerSecurityContext.enabled Enable container security context
+  ## The OTS images run as the built-in `ots` user (uid 1000, gid 1024) and write to /app/ots.
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1000
+    runAsGroup: 1024
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+  ## @param server.terminationGracePeriodSeconds Graceful shutdown period for the server pod
+  terminationGracePeriodSeconds: 60
+  ## @param server.updateStrategy.type StatefulSet update strategy
+  updateStrategy:
+    type: RollingUpdate
+
+  ## Server container resources
+  ## @param server.resources.requests.cpu server container CPU request
+  ## @param server.resources.requests.memory server container memory request
+  ## @param server.resources.limits CPU/Memory resource limits for the server container
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits: {}
+
+  ## Liveness/readiness probes hit /api/health on 8081
+  ## @param server.livenessProbe.enabled Enable liveness probe on the server container
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 6
+    successThreshold: 1
+  ## @param server.readinessProbe.enabled Enable readiness probe on the server container
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 6
+    successThreshold: 1
+  ## @param server.startupProbe.enabled Enable startup probe on the server container
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 20
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 40
+    successThreshold: 1
+  ## @param server.customLivenessProbe Custom liveness probe (overrides the default)
+  customLivenessProbe: {}
+  ## @param server.customReadinessProbe Custom readiness probe (overrides the default)
+  customReadinessProbe: {}
+  ## @param server.customStartupProbe Custom startup probe (overrides the default)
+  customStartupProbe: {}
+
+  ## @param server.extraVolumes Extra volumes for the server pod
+  extraVolumes: []
+  ## @param server.extraVolumeMounts Extra volume mounts for every OTS container in the server pod
+  extraVolumeMounts: []
+  ## @param server.initContainers Extra init containers for the server pod
+  initContainers: []
+  ## @param server.sidecars Extra sidecar containers for the server pod
+  sidecars: []
+
+  ## CoT parser container (ghcr.io/brian7704/ots_cot_parser)
+  cotParser:
+    ## @param server.cotParser.enabled Deploy the CoT parser container
+    enabled: true
+    image:
+      ## @param server.cotParser.image.registry CoT parser image registry
+      registry: ghcr.io
+      ## @param server.cotParser.image.repository CoT parser image repository
+      repository: brian7704/ots_cot_parser
+      ## @param server.cotParser.image.tag CoT parser image tag
+      tag: 1.7.13
+      ## @param server.cotParser.image.digest CoT parser image digest
+      digest: ""
+      ## @param server.cotParser.image.pullPolicy CoT parser image pull policy
+      pullPolicy: IfNotPresent
+      ## @param server.cotParser.image.pullSecrets CoT parser image pull secrets
+      pullSecrets: []
+    ## @param server.cotParser.processes Number of parser worker processes (OTS_COT_PARSER_PROCESSES)
+    processes: 1
+    ## @param server.cotParser.resources Resource requests/limits for the CoT parser container
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits: {}
+
+  ## EUD handler (plain TCP CoT streaming, port 8088) - ghcr.io/brian7704/ots_eud_handler
+  eudHandler:
+    ## @param server.eudHandler.enabled Deploy the plaintext TCP EUD handler container
+    enabled: true
+    image:
+      ## @param server.eudHandler.image.registry EUD handler image registry
+      registry: ghcr.io
+      ## @param server.eudHandler.image.repository EUD handler image repository
+      repository: brian7704/ots_eud_handler
+      ## @param server.eudHandler.image.tag EUD handler image tag
+      tag: 1.7.13
+      ## @param server.eudHandler.image.digest EUD handler image digest
+      digest: ""
+      ## @param server.eudHandler.image.pullPolicy EUD handler image pull policy
+      pullPolicy: IfNotPresent
+      ## @param server.eudHandler.image.pullSecrets EUD handler image pull secrets
+      pullSecrets: []
+    ## @param server.eudHandler.containerPort TCP CoT streaming port
+    containerPort: 8088
+    ## @param server.eudHandler.resources Resource requests/limits for the EUD handler container
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits: {}
+
+  ## EUD handler SSL (mutual-TLS CoT streaming, port 8089) - ghcr.io/brian7704/ots_eud_handler_ssl
+  eudHandlerSsl:
+    ## @param server.eudHandlerSsl.enabled Deploy the SSL EUD handler container
+    enabled: true
+    image:
+      ## @param server.eudHandlerSsl.image.registry SSL EUD handler image registry
+      registry: ghcr.io
+      ## @param server.eudHandlerSsl.image.repository SSL EUD handler image repository
+      repository: brian7704/ots_eud_handler_ssl
+      ## @param server.eudHandlerSsl.image.tag SSL EUD handler image tag
+      tag: 1.7.13
+      ## @param server.eudHandlerSsl.image.digest SSL EUD handler image digest
+      digest: ""
+      ## @param server.eudHandlerSsl.image.pullPolicy SSL EUD handler image pull policy
+      pullPolicy: IfNotPresent
+      ## @param server.eudHandlerSsl.image.pullSecrets SSL EUD handler image pull secrets
+      pullSecrets: []
+    ## @param server.eudHandlerSsl.containerPort SSL CoT streaming port
+    containerPort: 8089
+    ## @param server.eudHandlerSsl.resources Resource requests/limits for the SSL EUD handler container
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits: {}
+
+## @section OpenTAKServer persistence (shared data folder /app/ots)
+##
+persistence:
+  ## @param persistence.enabled Enable persistence for the OpenTAKServer data folder
+  enabled: true
+  ## @param persistence.existingClaim Use an existing PVC for the data folder
+  existingClaim: ""
+  ## @param persistence.storageClass StorageClass for the data folder PVC
+  storageClass: ""
+  ## @param persistence.accessModes Access modes for the data folder PVC
+  ## ReadWriteOnce is sufficient because every process that touches /app/ots runs in the
+  ## same pod. Only change this if you split components across pods.
+  accessModes:
+    - ReadWriteOnce
+  ## @param persistence.size Size of the data folder PVC
+  size: 20Gi
+  ## @param persistence.annotations Annotations for the data folder PVC
+  annotations: {}
+  ## @param persistence.selector Selector for the data folder PVC
+  selector: {}
+  ## @param persistence.dataFolder Mount path / OTS_DATA_FOLDER inside the containers
+  dataFolder: /app/ots
+
+## @section Service and networking
+##
+service:
+  ## Internal API service (ClusterIP) - consumed by the Ingress, the web UI and nginx-proxy
+  ## @param service.type API service type
+  type: ClusterIP
+  ## @param service.ports.http OpenTAKServer API/HTTP port (OTS_LISTENER_PORT)
+  ports:
+    http: 8081
+  ## @param service.clusterIP Static cluster IP for the API service
+  clusterIP: ""
+  ## @param service.annotations Annotations for the API service
+  annotations: {}
+  ## @param service.sessionAffinity Session affinity for the API service
+  sessionAffinity: None
+
+## Layer-4 service that exposes the TAK streaming / MQTT / video ports to clients outside the cluster.
+streamingService:
+  ## @param streamingService.enabled Create the external streaming service
+  enabled: true
+  ## @param streamingService.type Service type for the streaming service (LoadBalancer or NodePort recommended)
+  type: LoadBalancer
+  ## @param streamingService.loadBalancerIP Static load balancer IP
+  loadBalancerIP: ""
+  ## @param streamingService.loadBalancerSourceRanges Allowed client CIDRs
+  loadBalancerSourceRanges: []
+  ## @param streamingService.externalTrafficPolicy External traffic policy (Local preserves client source IP)
+  externalTrafficPolicy: Cluster
+  ## @param streamingService.annotations Annotations for the streaming service
+  annotations: {}
+  ## @param streamingService.tcpCotEnabled Expose the plaintext TCP CoT streaming port (8088)
+  tcpCotEnabled: true
+  ## @param streamingService.tcpCotPort Published plaintext TCP CoT port
+  tcpCotPort: 8088
+  ## @param streamingService.tcpCotNodePort NodePort for the plaintext TCP CoT port
+  tcpCotNodePort: ""
+  ## @param streamingService.sslCotEnabled Expose the SSL CoT streaming port (8089)
+  sslCotEnabled: true
+  ## @param streamingService.sslCotPort Published SSL CoT port
+  sslCotPort: 8089
+  ## @param streamingService.sslCotNodePort NodePort for the SSL CoT port
+  sslCotNodePort: ""
+  ## @param streamingService.extraPorts Extra ports for the streaming service
+  extraPorts: []
+
+## Kubernetes Ingress for the browser-facing web UI and REST/socket.io API (HTTPS).
+ingress:
+  ## @param ingress.enabled Enable the Ingress record
+  enabled: true
+  ## @param ingress.ingressClassName IngressClass name
+  ingressClassName: nginx
+  ## @param ingress.hostname Ingress hostname (defaults to opentakserver.fqdn when empty)
+  hostname: ""
+  ## @param ingress.path Base path for the web UI
+  path: /
+  ## @param ingress.pathType Ingress path type
+  pathType: Prefix
+  ## @param ingress.annotations Additional Ingress annotations
+  ## nginx-ingress needs larger bodies (data packages) and websocket support for socket.io.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 512m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  ## @param ingress.tls Enable TLS on the Ingress (uses ingress.tlsSecret or cert-manager)
+  tls: true
+  ## @param ingress.tlsSecret Existing TLS secret for the Ingress host
+  tlsSecret: ""
+  ## @param ingress.certManager.enabled Add cert-manager annotations and let it issue the certificate
+  ## @param ingress.certManager.clusterIssuer ClusterIssuer name used by cert-manager
+  ## @param ingress.certManager.issuer Namespaced Issuer name (used when clusterIssuer is empty)
+  certManager:
+    enabled: false
+    clusterIssuer: ""
+    issuer: ""
+  ## @param ingress.apiPaths Extra path prefixes that must be routed to the API service instead of the web UI
+  apiPaths:
+    - /api
+    - /socket.io
+    - /Marti
+  ## @param ingress.extraHosts Additional Ingress hosts
+  extraHosts: []
+  ## @param ingress.extraTls Additional Ingress TLS entries
+  extraTls: []
+  ## @param ingress.extraRules Additional raw Ingress rules
+  extraRules: []
+
+## @section Web UI (ghcr.io/brian7704/opentakserver-ui)
+##
+webui:
+  ## @param webui.enabled Deploy the OpenTAKServer web UI
+  enabled: true
+  ## @param webui.replicaCount Number of web UI replicas
+  replicaCount: 1
+  image:
+    ## @param webui.image.registry Web UI image registry
+    registry: ghcr.io
+    ## @param webui.image.repository Web UI image repository
+    repository: brian7704/opentakserver-ui
+    ## @param webui.image.tag Web UI image tag (the project currently only publishes `master`)
+    tag: master
+    ## @param webui.image.digest Web UI image digest
+    digest: ""
+    ## @param webui.image.pullPolicy Web UI image pull policy
+    pullPolicy: IfNotPresent
+    ## @param webui.image.pullSecrets Web UI image pull secrets
+    pullSecrets: []
+  ## @param webui.containerPort Port the web UI container listens on
+  containerPort: 80
+  ## @param webui.service.type Web UI service type
+  ## @param webui.service.port Web UI service port
+  service:
+    type: ClusterIP
+    port: 80
+  ## @param webui.resources Resource requests/limits for the web UI
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits: {}
+  ## @param webui.podAnnotations Annotations for the web UI pod
+  podAnnotations: {}
+  ## @param webui.podLabels Extra labels for the web UI pod
+  podLabels: {}
+  ## @param webui.nodeSelector Node selector for the web UI pod
+  nodeSelector: {}
+  ## @param webui.tolerations Tolerations for the web UI pod
+  tolerations: []
+  ## @param webui.affinity Affinity for the web UI pod
+  affinity: {}
+  ## @param webui.autoscaling.enabled Enable HPA for the web UI
+  ## @param webui.autoscaling.minReplicas Minimum web UI replicas
+  ## @param webui.autoscaling.maxReplicas Maximum web UI replicas
+  ## @param webui.autoscaling.targetCPU Target CPU utilization percentage
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPU: 80
+  ## @param webui.podSecurityContext.enabled Enable pod security context for the web UI
+  podSecurityContext:
+    enabled: true
+    fsGroup: 101
+  ## @param webui.containerSecurityContext.enabled Enable container security context for the web UI
+  ## The upstream UI image is a stock `nginx` image whose master process starts as root to
+  ## bind port 80 and then drops privileges to the `nginx` user, so runAsNonRoot is not set
+  ## by default. Point webui.image at an unprivileged nginx build and tighten this if needed.
+  containerSecurityContext:
+    enabled: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+      add: ["CHOWN", "SETGID", "SETUID", "NET_BIND_SERVICE"]
+    seccompProfile:
+      type: RuntimeDefault
+
+## @section MediaMTX video server (bluenviron/mediamtx)
+##
+mediamtx:
+  ## @param mediamtx.enabled Deploy MediaMTX (video streaming) as a sidecar in the server pod
+  enabled: true
+  image:
+    ## @param mediamtx.image.registry MediaMTX image registry
+    registry: docker.io
+    ## @param mediamtx.image.repository MediaMTX image repository
+    repository: bluenviron/mediamtx
+    ## @param mediamtx.image.tag MediaMTX image tag (ffmpeg variant required for transcoding)
+    tag: 1.13.0-ffmpeg
+    ## @param mediamtx.image.digest MediaMTX image digest
+    digest: ""
+    ## @param mediamtx.image.pullPolicy MediaMTX image pull policy
+    pullPolicy: IfNotPresent
+    ## @param mediamtx.image.pullSecrets MediaMTX image pull secrets
+    pullSecrets: []
+  ## @param mediamtx.apiToken Shared token MediaMTX uses to call the OTS webhook (OTS_MEDIAMTX_TOKEN). Auto-generated when empty.
+  apiToken: ""
+  ## @param mediamtx.apiPort MediaMTX HTTP API port (OTS_MEDIAMTX_API_ADDRESS)
+  apiPort: 9997
+  ## @param mediamtx.config Raw mediamtx.yml. When empty the chart ships the OpenTAKServer default config.
+  config: ""
+  ## @param mediamtx.resources Resource requests/limits for the MediaMTX container
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits: {}
+  ## @param mediamtx.containerSecurityContext.enabled Enable container security context for MediaMTX
+  ## Runs as the OTS `ots` user (uid 1000, gid 1024) so recordings land on the shared volume.
+  containerSecurityContext:
+    enabled: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1024
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+  ## External service for the video protocols (RTSP/RTMP/HLS/WebRTC/SRT).
+  service:
+    ## @param mediamtx.service.enabled Create an external service for MediaMTX video protocols
+    enabled: true
+    ## @param mediamtx.service.type MediaMTX service type
+    type: LoadBalancer
+    ## @param mediamtx.service.loadBalancerIP Static load balancer IP for MediaMTX
+    loadBalancerIP: ""
+    ## @param mediamtx.service.loadBalancerSourceRanges Allowed client CIDRs for MediaMTX
+    loadBalancerSourceRanges: []
+    ## @param mediamtx.service.annotations Annotations for the MediaMTX service
+    annotations: {}
+    ## @param mediamtx.service.ports [object] Ports published by the MediaMTX service
+    ports:
+      rtsp: 8554
+      rtmp: 1935
+      rtmps: 1936
+      hls: 8888
+      webrtc: 8889
+      webrtcIce: 8189
+      srt: 8890
+    ## @param mediamtx.service.extraPorts Extra ports for the MediaMTX service
+    extraPorts: []
+
+## @section nginx-proxy (optional TAK edge proxy)
+##
+## OpenTAKServer's docker-compose ships an nginx reverse proxy that terminates TLS for the
+## TAK-specific ports using the OTS-generated CA:
+##   * 8443 - Marti API with mandatory client-certificate (mutual TLS)
+##   * 8446 - automatic certificate enrollment
+##   * 8883 - MQTTS -> RabbitMQ 1883
+## A standard Kubernetes Ingress cannot express client-certificate enrollment, so this
+## component is provided for deployments that need native ATAK/iTAK certificate enrollment.
+## It is DISABLED by default in favour of the Ingress above; enable it when you need the
+## TAK data-sync / enrollment endpoints. It runs as a sidecar in the server pod so it can
+## read the generated CA from the shared data folder.
+nginxProxy:
+  ## @param nginxProxy.enabled Deploy the nginx TAK edge proxy sidecar
+  enabled: false
+  image:
+    ## @param nginxProxy.image.registry nginx image registry
+    registry: docker.io
+    ## @param nginxProxy.image.repository nginx image repository
+    repository: nginxinc/nginx-unprivileged
+    ## @param nginxProxy.image.tag nginx image tag
+    tag: 1.29-alpine
+    ## @param nginxProxy.image.digest nginx image digest
+    digest: ""
+    ## @param nginxProxy.image.pullPolicy nginx image pull policy
+    pullPolicy: IfNotPresent
+    ## @param nginxProxy.image.pullSecrets nginx image pull secrets
+    pullSecrets: []
+  ## @param nginxProxy.clientMaxBodySize Max upload size proxied to OTS
+  clientMaxBodySize: 512M
+  ## @param nginxProxy.resources Resource requests/limits for the nginx proxy
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits: {}
+  ## @param nginxProxy.containerSecurityContext.enabled Enable container security context for nginx-proxy
+  ## Runs as the OTS `ots` user (uid 1000, gid 1024) so it can read the CA private keys
+  ## (mode 0600) that OpenTAKServer generates on the shared data volume.
+  containerSecurityContext:
+    enabled: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1024
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+  ## When nginxProxy.enabled=true these ports are added to `streamingService` (which owns the
+  ## service type / LoadBalancer settings).
+  service:
+    ## @param nginxProxy.service.martiPort Published Marti API mutual-TLS port
+    martiPort: 8443
+    ## @param nginxProxy.service.enrollmentPort Published certificate enrollment port
+    enrollmentPort: 8446
+    ## @param nginxProxy.service.mqttsPort Published MQTTS port
+    mqttsPort: 8883
+
+## @section ServiceAccount and RBAC
+##
+serviceAccount:
+  ## @param serviceAccount.create Create a ServiceAccount for the release
+  create: true
+  ## @param serviceAccount.name Name of the ServiceAccount (generated when empty)
+  name: ""
+  ## @param serviceAccount.annotations Annotations for the ServiceAccount
+  annotations: {}
+  ## @param serviceAccount.automountServiceAccountToken Automount the API token
+  automountServiceAccountToken: false
+
+## @section Database (PostGIS)
+##
+## OpenTAKServer REQUIRES PostGIS (its migrations use geoalchemy2 / PostGIS types), so the
+## bundled database uses the official `postgis/postgis` image rather than a plain PostgreSQL.
+## Set `postgresql.enabled=false` and fill `externalDatabase.*` to use your own PostGIS server
+## (for example a CloudNativePG or Crunchy cluster running a PostGIS image).
+postgresql:
+  ## @param postgresql.enabled Deploy the bundled PostGIS database
+  enabled: true
+  image:
+    ## @param postgresql.image.registry PostGIS image registry
+    registry: docker.io
+    ## @param postgresql.image.repository PostGIS image repository
+    repository: postgis/postgis
+    ## @param postgresql.image.tag PostGIS image tag (`<pg-major>-<postgis>`)
+    tag: "18-3.6"
+    ## @param postgresql.image.digest PostGIS image digest
+    digest: ""
+    ## @param postgresql.image.pullPolicy PostGIS image pull policy
+    pullPolicy: IfNotPresent
+    ## @param postgresql.image.pullSecrets PostGIS image pull secrets
+    pullSecrets: []
+  auth:
+    ## @param postgresql.auth.username Application database user
+    username: ots
+    ## @param postgresql.auth.database Application database name
+    database: ots
+    ## @param postgresql.auth.password Password for the application user. Auto-generated when empty.
+    password: ""
+    ## @param postgresql.auth.postgresPassword Password for the postgres superuser. Auto-generated when empty.
+    postgresPassword: ""
+    ## @param postgresql.auth.existingSecret Existing secret with keys `password` and `postgres-password`
+    existingSecret: ""
+  ## @param postgresql.primary.resources Resource requests/limits for PostGIS
+  primary:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits: {}
+    ## @param postgresql.primary.persistence.enabled Enable persistence for PostGIS
+    ## @param postgresql.primary.persistence.storageClass StorageClass for the PostGIS PVC
+    ## @param postgresql.primary.persistence.size Size of the PostGIS PVC
+    persistence:
+      enabled: true
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 10Gi
+    ## @param postgresql.primary.podSecurityContext.fsGroup fsGroup for the PostGIS pod
+    podSecurityContext:
+      enabled: true
+      fsGroup: 999
+    ## @param postgresql.primary.containerSecurityContext.runAsUser runAsUser for the PostGIS container
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 999
+      runAsGroup: 999
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+      seccompProfile:
+        type: RuntimeDefault
+  ## @param postgresql.service.port PostGIS service port
+  service:
+    port: 5432
+
+## External PostGIS database (used when postgresql.enabled=false)
+externalDatabase:
+  ## @param externalDatabase.host External database host
+  host: ""
+  ## @param externalDatabase.port External database port
+  port: 5432
+  ## @param externalDatabase.user External database user
+  user: ots
+  ## @param externalDatabase.database External database name
+  database: ots
+  ## @param externalDatabase.password External database password (ignored when existingSecret is set)
+  password: ""
+  ## @param externalDatabase.existingSecret Existing secret holding the external database password
+  existingSecret: ""
+  ## @param externalDatabase.existingSecretPasswordKey Key in existingSecret with the password
+  existingSecretPasswordKey: password
+
+## @section RabbitMQ (bundled, first-party)
+##
+## A single-node RabbitMQ running the official image, wired exactly like the upstream
+## docker-compose: the `rabbitmq_mqtt` and `rabbitmq_auth_backend_http` plugins, an MQTT
+## listener on 1883, and the HTTP auth backend pointing at OpenTAKServer so ATAK EUDs and
+## Meshtastic devices authenticate against OTS.
+##
+## NOTE: OpenTAKServer builds the Flask-SocketIO message-queue URL as `amqp://<host>` with
+## NO credentials, so it relies on the classic `guest`/`guest` account (as does the upstream
+## compose). `loopback_users = none` is set so the OTS pod can use it over the network. The
+## AMQP (5672) and MQTT (1883) ports are only exposed as ClusterIP.
+rabbitmq:
+  ## @param rabbitmq.enabled Deploy the bundled RabbitMQ
+  enabled: true
+  image:
+    ## @param rabbitmq.image.registry RabbitMQ image registry
+    registry: docker.io
+    ## @param rabbitmq.image.repository RabbitMQ image repository
+    repository: library/rabbitmq
+    ## @param rabbitmq.image.tag RabbitMQ image tag (management variant)
+    tag: 4.1.8-management-alpine
+    ## @param rabbitmq.image.digest RabbitMQ image digest
+    digest: ""
+    ## @param rabbitmq.image.pullPolicy RabbitMQ image pull policy
+    pullPolicy: IfNotPresent
+    ## @param rabbitmq.image.pullSecrets RabbitMQ image pull secrets
+    pullSecrets: []
+  auth:
+    ## @param rabbitmq.auth.username RabbitMQ username (RABBITMQ_DEFAULT_USER)
+    username: guest
+    ## @param rabbitmq.auth.password RabbitMQ password. Auto-generated when empty; keep `guest` for the SocketIO queue.
+    password: guest
+  ## @param rabbitmq.managementUiEnabled Expose the management UI (:15672) on the ClusterIP service
+  managementUiEnabled: false
+  ## @param rabbitmq.extraConfiguration Extra lines appended to rabbitmq.conf
+  extraConfiguration: ""
+  ## @param rabbitmq.persistence.enabled Enable persistence for RabbitMQ
+  ## @param rabbitmq.persistence.storageClass StorageClass for the RabbitMQ PVC
+  ## @param rabbitmq.persistence.size Size of the RabbitMQ PVC
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+  ## @param rabbitmq.resources Resource requests/limits for RabbitMQ
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits: {}
+  ## @param rabbitmq.podSecurityContext.fsGroup fsGroup for the RabbitMQ pod
+  ## The official rabbitmq image runs as uid 100 / gid 101.
+  podSecurityContext:
+    enabled: true
+    fsGroup: 101
+  ## @param rabbitmq.containerSecurityContext.runAsUser runAsUser for the RabbitMQ container
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 100
+    runAsGroup: 101
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+  ## @param rabbitmq.service.port RabbitMQ AMQP service port
+  ## @param rabbitmq.service.mqttPort RabbitMQ MQTT service port
+  service:
+    port: 5672
+    mqttPort: 1883
+
+## External RabbitMQ (used when rabbitmq.enabled=false)
+externalRabbitmq:
+  ## @param externalRabbitmq.host External RabbitMQ host
+  host: ""
+  ## @param externalRabbitmq.port External RabbitMQ AMQP port
+  port: 5672
+  ## @param externalRabbitmq.username External RabbitMQ username
+  username: ots
+  ## @param externalRabbitmq.password External RabbitMQ password (ignored when existingSecret is set)
+  password: ""
+  ## @param externalRabbitmq.existingSecret Existing secret holding the external RabbitMQ password
+  existingSecret: ""
+  ## @param externalRabbitmq.existingSecretPasswordKey Key in existingSecret with the password
+  existingSecretPasswordKey: rabbitmq-password

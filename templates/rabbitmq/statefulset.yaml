@@ -1,0 +1,127 @@
+{{- if .Values.rabbitmq.enabled }}
+{{- $secretName := include "opentakserver.rabbitmq.fullname" . -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "opentakserver.rabbitmq.fullname" . }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
+  {{- end }}
+spec:
+  serviceName: {{ include "opentakserver.rabbitmq.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rabbitmq
+  template:
+    metadata:
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: rabbitmq
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/rabbitmq/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "opentakserver.serviceAccountName" . }}
+      {{- include "opentakserver.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.rabbitmq.podSecurityContext.enabled }}
+      securityContext: {{- omit .Values.rabbitmq.podSecurityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: copy-config
+          image: {{ include "opentakserver.rabbitmq.image" . }}
+          imagePullPolicy: {{ .Values.rabbitmq.image.pullPolicy }}
+          {{- if .Values.rabbitmq.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.rabbitmq.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              cp /tmp/cm/rabbitmq.conf /etc/rabbitmq/rabbitmq.conf
+              cp /tmp/cm/enabled_plugins /etc/rabbitmq/enabled_plugins
+          volumeMounts:
+            - name: config-src
+              mountPath: /tmp/cm
+            - name: config
+              mountPath: /etc/rabbitmq
+      containers:
+        - name: rabbitmq
+          image: {{ include "opentakserver.rabbitmq.image" . }}
+          imagePullPolicy: {{ .Values.rabbitmq.image.pullPolicy }}
+          {{- if .Values.rabbitmq.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.rabbitmq.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: {{ .Values.rabbitmq.auth.username | quote }}
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: rabbitmq-password
+            - name: RABBITMQ_NODENAME
+              value: "rabbit@localhost"
+            - name: RABBITMQ_USE_LONGNAME
+              value: "false"
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: mqtt
+              containerPort: {{ .Values.rabbitmq.service.mqttPort }}
+            - name: management
+              containerPort: 15672
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 20
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 20
+            failureThreshold: 6
+          startupProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 20
+            failureThreshold: 30
+          {{- with .Values.rabbitmq.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rabbitmq
+            - name: data
+              mountPath: /var/lib/rabbitmq
+      volumes:
+        - name: config-src
+          configMap:
+            name: {{ include "opentakserver.rabbitmq.fullname" . }}
+        - name: config
+          emptyDir: {}
+        {{- if not .Values.rabbitmq.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.rabbitmq.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels: {{- include "common.labels.matchLabels" . | nindent 10 }}
+      spec:
+        accessModes: {{- toYaml .Values.rabbitmq.persistence.accessModes | nindent 10 }}
+        resources:
+          requests:
+            storage: {{ .Values.rabbitmq.persistence.size | quote }}
+        {{- include "common.storage.class" (dict "persistence" .Values.rabbitmq.persistence "global" .Values.global) | nindent 8 }}
+  {{- end }}
+{{- end }}

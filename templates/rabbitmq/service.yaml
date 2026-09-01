@@ -1,0 +1,31 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "opentakserver.rabbitmq.fullname" . }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: amqp
+      port: {{ .Values.rabbitmq.service.port }}
+      targetPort: amqp
+      protocol: TCP
+    - name: mqtt
+      port: {{ .Values.rabbitmq.service.mqttPort }}
+      targetPort: mqtt
+      protocol: TCP
+    {{- if .Values.rabbitmq.managementUiEnabled }}
+    - name: management
+      port: 15672
+      targetPort: management
+      protocol: TCP
+    {{- end }}
+  selector: {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+{{- end }}

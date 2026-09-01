@@ -1,0 +1,33 @@
+apiVersion: v2
+name: opentakserver
+description: |
+  OpenTAKServer (OTS) - a self-hosted TAK server for ATAK/iTAK/WinTAK clients.
+  Packages the full stack from the official docker-compose: the API server, CoT
+  parser, EUD handlers (TCP/SSL), the web UI, MediaMTX for video, RabbitMQ and a
+  PostGIS database. Chart conventions follow the Bitnami common library.
+type: application
+version: 0.1.0
+# appVersion tracks the OpenTAKServer release the default image tags point to.
+appVersion: "1.7.13"
+keywords:
+  - tak
+  - atak
+  - itak
+  - cot
+  - opentakserver
+  - situational-awareness
+home: https://opentakserver.io
+icon: https://raw.githubusercontent.com/brian7704/OpenTAKServer/master/opentakserver/static/favicon.ico
+sources:
+  - https://github.com/brian7704/OpenTAKServer
+  - https://github.com/brian7704/OpenTAKServer-Docker
+  - https://docs.opentakserver.io
+maintainers:
+  - name: OpenTAKServer Helm chart maintainers
+annotations:
+  category: Infrastructure
+  licenses: GPL-3.0-or-later
+dependencies:
+  - name: common
+    version: 2.41.0
+    repository: oci://registry-1.docker.io/bitnamicharts

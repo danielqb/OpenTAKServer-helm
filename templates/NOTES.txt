@@ -1,0 +1,65 @@
+
+{{ include "common.names.fullname" . }} — OpenTAKServer {{ .Chart.AppVersion }}
+
+The OpenTAKServer stack is starting. It runs as a single StatefulSet pod
+({{ include "opentakserver.server.fullname" . }}) with these containers:
+  - opentakserver          (REST/CoT API on :{{ .Values.service.ports.http }})
+  {{- if .Values.server.cotParser.enabled }}
+  - cot-parser{{ end }}
+  {{- if .Values.server.eudHandler.enabled }}
+  - eud-handler            (TCP CoT :{{ .Values.server.eudHandler.containerPort }}){{ end }}
+  {{- if .Values.server.eudHandlerSsl.enabled }}
+  - eud-handler-ssl        (SSL CoT :{{ .Values.server.eudHandlerSsl.containerPort }}){{ end }}
+  {{- if .Values.mediamtx.enabled }}
+  - mediamtx               (video){{ end }}
+  {{- if .Values.nginxProxy.enabled }}
+  - nginx-proxy            (TAK edge: :8443 mTLS Marti, :8446 enrollment, :8883 MQTTS){{ end }}
+
+1. Watch the rollout:
+   kubectl -n {{ include "common.names.namespace" . }} rollout status statefulset/{{ include "opentakserver.server.fullname" . }}
+
+2. First administrator login (CHANGE THE PASSWORD IMMEDIATELY):
+   username: administrator
+   password: password
+
+{{- if .Values.ingress.enabled }}
+
+3. Web UI / REST API:
+   https://{{ include "opentakserver.ingress.hostname" . }}/
+   {{- if and .Values.ingress.tls (not .Values.ingress.tlsSecret) (not .Values.ingress.certManager.enabled) }}
+   WARNING: ingress.tls is enabled but no tlsSecret / cert-manager issuer is configured.
+   {{- end }}
+{{- else }}
+
+3. Web UI is not exposed via Ingress. Port-forward for a quick check:
+   kubectl -n {{ include "common.names.namespace" . }} port-forward svc/{{ include "opentakserver.webui.fullname" . }} 8080:{{ .Values.webui.service.port }}
+{{- end }}
+
+{{- if .Values.streamingService.enabled }}
+
+4. TAK client streaming endpoints ({{ .Values.streamingService.type }} service
+   {{ printf "%s-streaming" (include "opentakserver.server.fullname" .) }}):
+   {{- if .Values.server.eudHandler.enabled }}
+   - tcp://<external-ip>:{{ .Values.streamingService.tcpCotPort }}   (plaintext CoT){{ end }}
+   {{- if .Values.server.eudHandlerSsl.enabled }}
+   - ssl://<external-ip>:{{ .Values.streamingService.sslCotPort }}   (TLS CoT, client cert){{ end }}
+   Get the address with:
+   kubectl -n {{ include "common.names.namespace" . }} get svc {{ printf "%s-streaming" (include "opentakserver.server.fullname" .) }}
+{{- end }}
+
+{{- if not .Values.nginxProxy.enabled }}
+
+NOTE: nginxProxy.enabled=false. ATAK/iTAK automatic certificate enrollment and the
+mutual-TLS Marti API (ports 8443/8446) are NOT exposed. Enable `nginxProxy.enabled=true`
+or place an equivalent mTLS L4 proxy in front of the server if you need them.
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+
+Database: bundled PostGIS ({{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}).
+{{- else }}
+
+Database: external at {{ .Values.externalDatabase.host }}:{{ .Values.externalDatabase.port }} (must have PostGIS).
+{{- end }}
+
+{{ include "common.warnings.rollingTag" .Values.webui.image }}

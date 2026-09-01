@@ -1,0 +1,11 @@
+# Local test artifacts
+*.tgz
+/kind-values*.yaml
+/.env
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*~
+.vscode/
+.idea/

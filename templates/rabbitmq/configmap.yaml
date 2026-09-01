@@ -1,0 +1,36 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opentakserver.rabbitmq.fullname" . }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
+  {{- end }}
+data:
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_mqtt,rabbitmq_auth_backend_http].
+  rabbitmq.conf: |
+    # Allow the classic guest account over the network (OpenTAKServer's SocketIO queue
+    # connects as guest with no password). AMQP/MQTT are ClusterIP-only.
+    loopback_users = none
+
+    deprecated_features.permit.transient_nonexcl_queues = true
+
+    # MQTT listener for ATAK EUDs / Meshtastic
+    mqtt.listeners.tcp.default = {{ .Values.rabbitmq.service.mqttPort }}
+
+    # Authenticate MQTT/AMQP against the internal DB first, then OpenTAKServer over HTTP
+    auth_backends.1 = internal
+    auth_backends.2 = http
+    auth_http.http_method   = post
+    auth_http.user_path     = http://{{ include "opentakserver.server.fullname" . }}:{{ .Values.service.ports.http }}/api/rabbitmq/auth
+    auth_http.vhost_path    = http://{{ include "opentakserver.server.fullname" . }}:{{ .Values.service.ports.http }}/api/rabbitmq/vhost
+    auth_http.resource_path = http://{{ include "opentakserver.server.fullname" . }}:{{ .Values.service.ports.http }}/api/rabbitmq/resource
+    auth_http.topic_path    = http://{{ include "opentakserver.server.fullname" . }}:{{ .Values.service.ports.http }}/api/rabbitmq/topic
+    {{- with .Values.rabbitmq.extraConfiguration }}
+    {{ . | nindent 4 | trim }}
+    {{- end }}
+{{- end }}

@@ -1,0 +1,24 @@
+{{- if .Values.mediamtx.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-mediamtx" (include "common.names.fullname" .) }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: mediamtx
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
+  {{- end }}
+data:
+  mediamtx.yml: |-
+    {{- if .Values.mediamtx.config }}
+    {{- .Values.mediamtx.config | nindent 4 }}
+    {{- else }}
+    {{- $cfg := .Files.Get "files/mediamtx.yml" -}}
+    {{- $cfg = $cfg | replace "opentakserver:8081" "127.0.0.1:8081" -}}
+    {{- $cfg = $cfg | replace "apiAddress: :9997" (printf "apiAddress: :%v" .Values.mediamtx.apiPort) -}}
+    {{- /* MediaMTX expands ${ENV} at runtime; the token is injected from the chart Secret */ -}}
+    {{- $cfg = $cfg | replace "token=MTX_TOKEN" "token=${OTS_MEDIAMTX_TOKEN}" -}}
+    {{- $cfg | nindent 4 }}
+    {{- end }}
+{{- end }}
