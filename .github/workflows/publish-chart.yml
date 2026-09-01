@@ -40,8 +40,10 @@ jobs:
           helm package . --destination dist
           package_path="$(find dist -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -n "$package_path"
-          echo "path=$package_path" >> "$GITHUB_OUTPUT"
-          echo "version=$(helm show chart "$package_path" | awk '$1 == "version:" {print $2}')" >> "$GITHUB_OUTPUT"
+          chart_version="$(helm show chart "$package_path" | awk -F': *' '$1 == "version" {print $2; exit}')"
+          test -n "$chart_version"
+          printf 'path=%s\n' "$package_path" >> "$GITHUB_OUTPUT"
+          printf 'version=%s\n' "$chart_version" >> "$GITHUB_OUTPUT"
 
       - name: Verify release tag
         if: github.ref_type == 'tag'
