@@ -1,0 +1,39 @@
+suite: basic chart rendering
+templates:
+  - templates/server/service.yaml
+  - templates/server/ingress.yaml
+  - templates/tests/test-connection.yaml
+tests:
+  - it: renders the API service as ClusterIP
+    template: templates/server/service.yaml
+    set:
+      opentakserver.fqdn: example.invalid
+      ingress.tlsSecret: example-tls
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports[0].port
+          value: 8081
+
+  - it: renders the configured ingress hostname and TLS secret
+    template: templates/server/ingress.yaml
+    set:
+      opentakserver.fqdn: tak.example.invalid
+      ingress.tlsSecret: tak-tls
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: tak.example.invalid
+      - equal:
+          path: spec.tls[0].secretName
+          value: tak-tls
+
+  - it: renders a Helm test pod against the API service
+    template: templates/tests/test-connection.yaml
+    set:
+      opentakserver.fqdn: example.invalid
+      ingress.tlsSecret: example-tls
+    asserts:
+      - matchSnapshot: {}

@@ -1,0 +1,15 @@
+suite: values validation
+templates:
+  - templates/server/ingress.yaml
+tests:
+  - it: renders cert-manager configuration when enabled
+    set:
+      opentakserver.fqdn: example.invalid
+      ingress.tls: true
+      ingress.tlsSecret: ""
+      ingress.certManager.enabled: true
+      ingress.certManager.clusterIssuer: letsencrypt-prod
+    asserts:
+      - equal:
+          path: metadata.annotations["cert-manager.io/cluster-issuer"]
+          value: letsencrypt-prod

@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "opentakserver": {
+      "type": "object",
+      "properties": {
+        "fqdn": { "type": "string" },
+        "debug": { "type": "boolean" },
+        "existingSecret": { "type": "string" }
+      }
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "image": { "$ref": "#/definitions/image" },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" },
+        "resources": { "$ref": "#/definitions/resources" }
+      }
+    },
+    "persistence": { "$ref": "#/definitions/persistence" },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "tls": { "type": "boolean" },
+        "tlsSecret": { "type": "string" },
+        "certManager": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "clusterIssuer": { "type": "string" },
+            "issuer": { "type": "string" }
+          }
+        }
+      }
+    },
+    "webui": { "type": "object" },
+    "mediamtx": { "type": "object" },
+    "nginxProxy": { "type": "object" },
+    "postgresql": { "type": "object" },
+    "externalDatabase": { "type": "object" },
+    "rabbitmq": { "type": "object" },
+    "externalRabbitmq": { "type": "object" }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "properties": {
+        "registry": { "type": "string" },
+        "repository": { "type": "string" },
+        "tag": { "type": "string" },
+        "digest": { "type": "string" },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
+        "pullSecrets": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "requests": { "type": "object" },
+        "limits": { "type": "object" }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "existingClaim": { "type": "string" },
+        "accessModes": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "size": { "type": "string", "pattern": "^[0-9]+([EPTGMK]i?|m)?$" }
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+name: Validate Helm chart
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  helm:
+    name: Helm (${{ matrix.scenario }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scenario: default-tls
+            args: --set-string opentakserver.fqdn=example.invalid --set-string ingress.tlsSecret=example-tls
+          - scenario: nginx-proxy
+            args: --set-string opentakserver.fqdn=example.invalid --set-string ingress.tlsSecret=example-tls --set nginxProxy.enabled=true
+          - scenario: external-services
+            args: --set-string opentakserver.fqdn=example.invalid --set-string ingress.tlsSecret=example-tls --set postgresql.enabled=false --set-string externalDatabase.host=postgis.example.invalid --set rabbitmq.enabled=false --set-string externalRabbitmq.host=rabbitmq.example.invalid
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint chart strictly
+        run: helm lint . --strict ${{ matrix.args }}
+
+      - name: Render manifests
+        run: helm template opentakserver . ${{ matrix.args }} --output-dir /tmp/opentakserver-rendered
+
+      - name: Install Helm unit-test plugin
+        if: matrix.scenario == 'default-tls'
+        uses: helm-unittest/helm-unittest-action@v2.0.0
+
+      - name: Run Helm unit tests
+        if: matrix.scenario == 'default-tls'
+        run: helm unittest .
+
+      - name: Verify invalid TLS configuration is rejected
+        if: matrix.scenario == 'default-tls'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if helm template opentakserver . \
+            --set-string opentakserver.fqdn=example.invalid \
+            --set ingress.tls=true \
+            --set ingress.tlsSecret= \
+            --set ingress.certManager.enabled=false >/tmp/invalid-render.yaml 2>/tmp/invalid-render.err; then
+            echo "Expected TLS validation to fail" >&2
+            exit 1
+          fi
+          grep -Fq 'ingress.tls=true requires ingress.tlsSecret or ingress.certManager.enabled' /tmp/invalid-render.err

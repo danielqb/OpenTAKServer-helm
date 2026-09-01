@@ -1,0 +1,28 @@
+renders a Helm test pod against the API service:
+  1: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      annotations:
+        helm.sh/hook: test
+        helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+      labels:
+        app.kubernetes.io/component: test
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: opentakserver
+        app.kubernetes.io/version: 1.7.13
+        helm.sh/chart: opentakserver-0.1.0
+      name: release-name-opentakserver-test-connection
+      namespace: NAMESPACE
+    spec:
+      containers:
+        - args:
+            - |
+              wget -q -O- http://RELEASE-NAME-server:8081/api/health && echo OK
+          command:
+            - /bin/sh
+            - -c
+          image: ghcr.io/brian7704/opentakserver-ui:master
+          name: test
+      restartPolicy: Never

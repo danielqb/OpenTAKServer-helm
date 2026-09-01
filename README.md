@@ -172,6 +172,26 @@ Bitnami-style `## @param` annotation. Key sections: `global`, `opentakserver`,
 `mediamtx`, `nginxProxy`, `postgresql` / `externalDatabase`, `rabbitmq` /
 `externalRabbitmq`.
 
+Values are validated by [`values.schema.json`](values.schema.json). Repository
+contribution rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md), and deployment
+constraints are recorded in [`AGENTS.md`](AGENTS.md).
+
+## Validation
+
+Run the same core checks used by CI:
+
+```console
+helm lint . --strict \
+  --set opentakserver.fqdn=example.invalid \
+  --set ingress.tlsSecret=example-tls
+helm template ots . \
+  --set opentakserver.fqdn=example.invalid \
+  --set ingress.tlsSecret=example-tls
+helm unittest .
+```
+
+CI also renders the nginx-proxy and external database/RabbitMQ scenarios.
+
 ## Upgrading
 
 `helm upgrade` performs a rolling replacement of the single server pod (brief
@@ -216,4 +236,3 @@ a network round-trip to the OCI registry, and works around a `helm dependency bu
 quirk observed with this repo's toolchain that fails to resolve `.tgz` subcharts. To
 refresh it: `rm -rf charts && helm dependency update && (cd charts && for f in *.tgz;
 do tar xzf "$f" && rm "$f"; done)`.
-

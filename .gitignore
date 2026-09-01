@@ -2,6 +2,7 @@
 *.tgz
 /kind-values*.yaml
 /.env
+/.codebase-memory/
 
 # OS / editor cruft
 .DS_Store
