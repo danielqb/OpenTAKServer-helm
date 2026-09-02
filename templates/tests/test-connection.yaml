@@ -12,9 +12,9 @@ spec:
   restartPolicy: Never
   containers:
     - name: test
-      image: {{ include "opentakserver.webui.image" . }}
+      image: {{ include "opentakserver.server.image" . }}
       command: ["/bin/sh", "-c"]
       args:
         - >
-          wget -q -O- http://{{ include "opentakserver.server.fullname" . }}:{{ .Values.service.ports.http }}/api/health
+          curl -fsS -m 10 http://{{ include "opentakserver.server.fullname" . }}:{{ .Values.service.ports.http }}/api/health
           && echo OK

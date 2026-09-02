@@ -22,10 +22,13 @@ single-instance deployment model documented in `README.md`.
 Before opening a pull request, run:
 
 ```console
-helm lint . --set opentakserver.fqdn=example.invalid --set ingress.tlsSecret=example-tls
+helm lint . --strict --set opentakserver.fqdn=example.invalid --set ingress.tlsSecret=example-tls
 helm template opentakserver . --set opentakserver.fqdn=example.invalid --set ingress.tlsSecret=example-tls
 helm unittest .
 ```
+
+The `--strict` flag and `values.schema.json` are what CI enforces; keep the
+schema in sync when values are added, removed, or retyped.
 
 For changes affecting networking, persistence, security contexts, or external
 services, also render the relevant values combination and update the matching

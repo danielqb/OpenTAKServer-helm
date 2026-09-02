@@ -1,29 +1,145 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenTAKServer Helm chart values",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Unused by this chart's own templates. Allowed here because an umbrella chart's `condition: opentakserver.enabled` mechanism (see e.g. the umbrella chart) passes that same key through into this chart's own value tree as `enabled`."
+    },
+    "common": { "type": "object" },
+    "global": {
+      "type": "object",
+      "properties": {
+        "imageRegistry": { "type": "string" },
+        "imagePullSecrets": { "type": "array", "items": { "type": "string" } },
+        "storageClass": { "type": "string" },
+        "defaultStorageClass": { "type": "string" }
+      }
+    },
+    "kubeVersion": { "type": "string" },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "namespaceOverride": { "type": "string" },
+    "commonLabels": { "type": "object" },
+    "commonAnnotations": { "type": "object" },
+    "clusterDomain": { "type": "string" },
+    "extraDeploy": { "type": "array" },
+    "diagnosticMode": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
     "opentakserver": {
       "type": "object",
       "properties": {
         "fqdn": { "type": "string" },
         "debug": { "type": "boolean" },
-        "existingSecret": { "type": "string" }
+        "secretKey": { "type": "string" },
+        "existingSecret": { "type": "string" },
+        "ca": {
+          "type": "object",
+          "properties": {
+            "password": { "type": "string" },
+            "name": { "type": "string" },
+            "expirationDays": { "type": "integer", "minimum": 1 },
+            "country": { "type": "string" },
+            "state": { "type": "string" },
+            "city": { "type": "string" },
+            "organization": { "type": "string" },
+            "organizationalUnit": { "type": "string" }
+          }
+        },
+        "extraEnvVars": { "type": "array" },
+        "extraEnvVarsCM": { "type": "string" },
+        "extraEnvVarsSecret": { "type": "string" }
       }
     },
+
     "server": {
       "type": "object",
       "properties": {
         "image": { "$ref": "#/definitions/image" },
+        "waitForDependencies": { "type": "boolean" },
+        "command": { "type": "array" },
+        "args": { "type": "array" },
+        "extraEnvVars": { "type": "array" },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "priorityClassName": { "type": "string" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array" },
+        "affinity": { "type": "object" },
         "podSecurityContext": { "type": "object" },
         "containerSecurityContext": { "type": "object" },
-        "resources": { "$ref": "#/definitions/resources" }
+        "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+        "updateStrategy": { "type": "object" },
+        "resources": { "$ref": "#/definitions/resources" },
+        "livenessProbe": { "$ref": "#/definitions/probe" },
+        "readinessProbe": { "$ref": "#/definitions/probe" },
+        "startupProbe": { "$ref": "#/definitions/probe" },
+        "customLivenessProbe": { "type": "object" },
+        "customReadinessProbe": { "type": "object" },
+        "customStartupProbe": { "type": "object" },
+        "extraVolumes": { "type": "array" },
+        "extraVolumeMounts": { "type": "array" },
+        "initContainers": { "type": "array" },
+        "sidecars": { "type": "array" },
+        "cotParser": { "$ref": "#/definitions/subContainer" },
+        "eudHandler": { "$ref": "#/definitions/subContainer" },
+        "eudHandlerSsl": { "$ref": "#/definitions/subContainer" }
       }
     },
+
     "persistence": { "$ref": "#/definitions/persistence" },
+
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "ports": {
+          "type": "object",
+          "properties": { "http": { "$ref": "#/definitions/port" } }
+        },
+        "clusterIP": { "type": "string" },
+        "annotations": { "type": "object" },
+        "sessionAffinity": { "type": "string", "enum": ["None", "ClientIP"] }
+      }
+    },
+
+    "streamingService": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "type": { "type": "string" },
+        "loadBalancerIP": { "type": "string" },
+        "loadBalancerSourceRanges": { "type": "array", "items": { "type": "string" } },
+        "externalTrafficPolicy": { "type": "string", "enum": ["Cluster", "Local"] },
+        "annotations": { "type": "object" },
+        "tcpCotEnabled": { "type": "boolean" },
+        "tcpCotPort": { "$ref": "#/definitions/port" },
+        "tcpCotNodePort": { "$ref": "#/definitions/nodePort" },
+        "sslCotEnabled": { "type": "boolean" },
+        "sslCotPort": { "$ref": "#/definitions/port" },
+        "sslCotNodePort": { "$ref": "#/definitions/nodePort" },
+        "extraPorts": { "type": "array" }
+      }
+    },
+
     "ingress": {
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
+        "ingressClassName": { "type": "string" },
+        "hostname": { "type": "string" },
+        "path": { "type": "string" },
+        "pathType": { "type": "string" },
+        "annotations": { "type": "object" },
         "tls": { "type": "boolean" },
         "tlsSecret": { "type": "string" },
         "certManager": {
@@ -33,25 +149,176 @@
             "clusterIssuer": { "type": "string" },
             "issuer": { "type": "string" }
           }
+        },
+        "apiPaths": { "type": "array", "items": { "type": "string" } },
+        "extraHosts": { "type": "array" },
+        "extraTls": { "type": "array" },
+        "extraRules": { "type": "array" }
+      }
+    },
+
+    "webui": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "replicaCount": { "type": "integer", "minimum": 0 },
+        "image": { "$ref": "#/definitions/image" },
+        "containerPort": { "$ref": "#/definitions/port" },
+        "service": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "port": { "$ref": "#/definitions/port" }
+          }
+        },
+        "resources": { "$ref": "#/definitions/resources" },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array" },
+        "affinity": { "type": "object" },
+        "autoscaling": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "minReplicas": { "type": "integer", "minimum": 1 },
+            "maxReplicas": { "type": "integer", "minimum": 1 },
+            "targetCPU": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" }
+      }
+    },
+
+    "mediamtx": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "apiToken": { "type": "string" },
+        "apiPort": { "$ref": "#/definitions/port" },
+        "config": { "type": "string" },
+        "resources": { "$ref": "#/definitions/resources" },
+        "containerSecurityContext": { "type": "object" },
+        "service": { "type": "object" }
+      }
+    },
+
+    "nginxProxy": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "clientMaxBodySize": { "type": "string" },
+        "resources": { "$ref": "#/definitions/resources" },
+        "containerSecurityContext": { "type": "object" },
+        "service": {
+          "type": "object",
+          "properties": {
+            "martiPort": { "$ref": "#/definitions/port" },
+            "enrollmentPort": { "$ref": "#/definitions/port" },
+            "mqttsPort": { "$ref": "#/definitions/port" }
+          }
         }
       }
     },
-    "webui": { "type": "object" },
-    "mediamtx": { "type": "object" },
-    "nginxProxy": { "type": "object" },
-    "postgresql": { "type": "object" },
-    "externalDatabase": { "type": "object" },
-    "rabbitmq": { "type": "object" },
-    "externalRabbitmq": { "type": "object" }
+
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "create": { "type": "boolean" },
+        "name": { "type": "string" },
+        "annotations": { "type": "object" },
+        "automountServiceAccountToken": { "type": "boolean" }
+      }
+    },
+
+    "postgresql": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "username": { "type": "string" },
+            "database": { "type": "string" },
+            "password": { "type": "string" },
+            "postgresPassword": { "type": "string" },
+            "existingSecret": { "type": "string" }
+          }
+        },
+        "primary": { "type": "object" },
+        "service": {
+          "type": "object",
+          "properties": { "port": { "$ref": "#/definitions/port" } }
+        }
+      }
+    },
+
+    "externalDatabase": {
+      "type": "object",
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "$ref": "#/definitions/port" },
+        "user": { "type": "string" },
+        "database": { "type": "string" },
+        "password": { "type": "string" },
+        "existingSecret": { "type": "string" },
+        "existingSecretPasswordKey": { "type": "string" }
+      }
+    },
+
+    "rabbitmq": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "username": { "type": "string" },
+            "password": { "type": "string" }
+          }
+        },
+        "managementUiEnabled": { "type": "boolean" },
+        "extraConfiguration": { "type": "string" },
+        "persistence": { "type": "object" },
+        "resources": { "$ref": "#/definitions/resources" },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" },
+        "service": {
+          "type": "object",
+          "properties": {
+            "port": { "$ref": "#/definitions/port" },
+            "mqttPort": { "$ref": "#/definitions/port" }
+          }
+        }
+      }
+    },
+
+    "externalRabbitmq": {
+      "type": "object",
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "$ref": "#/definitions/port" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "existingSecret": { "type": "string" },
+        "existingSecretPasswordKey": { "type": "string" }
+      }
+    }
   },
+
   "definitions": {
     "image": {
       "type": "object",
       "properties": {
         "registry": { "type": "string" },
         "repository": { "type": "string" },
-        "tag": { "type": "string" },
-        "digest": { "type": "string" },
+        "tag": { "type": ["string", "number"] },
+        "digest": { "type": "string", "pattern": "^(sha256:[a-f0-9]{64})?$" },
         "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
         "pullSecrets": { "type": "array", "items": { "type": "string" } }
       }
@@ -63,14 +330,41 @@
         "limits": { "type": "object" }
       }
     },
+    "probe": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "initialDelaySeconds": { "type": "integer", "minimum": 0 },
+        "periodSeconds": { "type": "integer", "minimum": 1 },
+        "timeoutSeconds": { "type": "integer", "minimum": 1 },
+        "failureThreshold": { "type": "integer", "minimum": 1 },
+        "successThreshold": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "subContainer": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "processes": { "type": "integer", "minimum": 1 },
+        "containerPort": { "$ref": "#/definitions/port" },
+        "resources": { "$ref": "#/definitions/resources" }
+      }
+    },
     "persistence": {
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
         "existingClaim": { "type": "string" },
+        "storageClass": { "type": "string" },
         "accessModes": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-        "size": { "type": "string", "pattern": "^[0-9]+([EPTGMK]i?|m)?$" }
+        "size": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?\\s*([EPTGMK]i?|m)?$" },
+        "annotations": { "type": "object" },
+        "selector": { "type": "object" },
+        "dataFolder": { "type": "string" }
       }
-    }
+    },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "nodePort": { "type": ["integer", "string"] }
   }
 }

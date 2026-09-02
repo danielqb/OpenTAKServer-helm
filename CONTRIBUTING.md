@@ -10,10 +10,11 @@
 
 ## Pull request checklist
 
-- [ ] `helm lint` passes.
+- [ ] `helm lint --strict` passes.
 - [ ] `helm template` passes with TLS enabled.
 - [ ] `helm unittest` passes.
-- [ ] `values.schema.json` is updated when values are added or changed.
+- [ ] `values.schema.json` is updated when values are added or changed, and a
+      test covers any new validation path.
 - [ ] README or `docs/` is updated for user-visible behavior.
 - [ ] Image tags are pinned, or the reason for a rolling tag is documented.
 - [ ] No secrets, generated manifests, `.tgz` packages, or

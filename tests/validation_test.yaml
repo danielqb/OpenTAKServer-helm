@@ -1,8 +1,7 @@
 suite: values validation
-templates:
-  - templates/server/ingress.yaml
 tests:
   - it: renders cert-manager configuration when enabled
+    template: templates/server/ingress.yaml
     set:
       opentakserver.fqdn: example.invalid
       ingress.tls: true
@@ -13,3 +12,25 @@ tests:
       - equal:
           path: metadata.annotations["cert-manager.io/cluster-issuer"]
           value: letsencrypt-prod
+
+  - it: rejects TLS without a secret or cert-manager
+    template: templates/server/statefulset.yaml
+    set:
+      opentakserver.fqdn: example.invalid
+      ingress.enabled: true
+      ingress.tls: true
+      ingress.tlsSecret: ""
+      ingress.certManager.enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: ingress.tls=true requires ingress.tlsSecret or ingress.certManager.enabled
+
+  - it: rejects an enabled Ingress without a hostname
+    template: templates/server/statefulset.yaml
+    set:
+      opentakserver.fqdn: ""
+      ingress.enabled: true
+      ingress.hostname: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: ingress.enabled=true requires either opentakserver.fqdn or ingress.hostname to be set

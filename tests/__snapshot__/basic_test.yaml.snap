@@ -19,10 +19,10 @@ renders a Helm test pod against the API service:
       containers:
         - args:
             - |
-              wget -q -O- http://RELEASE-NAME-server:8081/api/health && echo OK
+              curl -fsS -m 10 http://RELEASE-NAME-server:8081/api/health && echo OK
           command:
             - /bin/sh
             - -c
-          image: ghcr.io/brian7704/opentakserver-ui:master
+          image: ghcr.io/brian7704/opentakserver:1.7.13
           name: test
       restartPolicy: Never

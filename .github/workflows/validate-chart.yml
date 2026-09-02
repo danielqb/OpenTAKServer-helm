@@ -24,7 +24,15 @@ jobs:
           - scenario: nginx-proxy
             args: --set-string opentakserver.fqdn=example.invalid --set-string ingress.tlsSecret=example-tls --set nginxProxy.enabled=true
           - scenario: external-services
-            args: --set-string opentakserver.fqdn=example.invalid --set-string ingress.tlsSecret=example-tls --set postgresql.enabled=false --set-string externalDatabase.host=postgis.example.invalid --set rabbitmq.enabled=false --set-string externalRabbitmq.host=rabbitmq.example.invalid
+            args: >-
+              --set-string opentakserver.fqdn=example.invalid
+              --set-string ingress.tlsSecret=example-tls
+              --set postgresql.enabled=false
+              --set-string externalDatabase.host=postgis.example.invalid
+              --set-string externalDatabase.password=example
+              --set rabbitmq.enabled=false
+              --set-string externalRabbitmq.host=rabbitmq.example.invalid
+              --set-string externalRabbitmq.password=example
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -38,6 +46,11 @@ jobs:
       - name: Render manifests
         run: helm template opentakserver . ${{ matrix.args }} --output-dir /tmp/opentakserver-rendered
 
+      - name: Validate rendered manifests against Kubernetes schemas
+        uses: docker://ghcr.io/yannh/kubeconform:v0.6.7
+        with:
+          args: -strict -summary -ignore-missing-schemas -kubernetes-version 1.30.0 /tmp/opentakserver-rendered
+
       - name: Install Helm unit-test plugin
         if: matrix.scenario == 'default-tls'
         uses: helm-unittest/helm-unittest-action@v2.0.0
@@ -46,17 +59,22 @@ jobs:
         if: matrix.scenario == 'default-tls'
         run: helm unittest .
 
-      - name: Verify invalid TLS configuration is rejected
+      - name: Verify values.schema.json rejects invalid values
         if: matrix.scenario == 'default-tls'
         shell: bash
         run: |
           set -euo pipefail
-          if helm template opentakserver . \
-            --set-string opentakserver.fqdn=example.invalid \
-            --set ingress.tls=true \
-            --set ingress.tlsSecret= \
-            --set ingress.certManager.enabled=false >/tmp/invalid-render.yaml 2>/tmp/invalid-render.err; then
-            echo "Expected TLS validation to fail" >&2
-            exit 1
-          fi
-          grep -Fq 'ingress.tls=true requires ingress.tlsSecret or ingress.certManager.enabled' /tmp/invalid-render.err
+          expect_reject() {
+            local desc="$1"; shift
+            if helm template opentakserver . \
+              --set-string opentakserver.fqdn=example.invalid \
+              --set-string ingress.tlsSecret=example-tls \
+              "$@" >/dev/null 2>/tmp/schema-reject.err; then
+              echo "Expected schema validation to reject: $desc" >&2
+              exit 1
+            fi
+            echo "Rejected as expected: $desc"
+          }
+          expect_reject "unknown top-level key" --set ingres.enabled=false
+          expect_reject "malformed persistence.size" --set-string persistence.size=notasize
+          expect_reject "invalid image pullPolicy" --set-string server.image.pullPolicy=Sometimes
