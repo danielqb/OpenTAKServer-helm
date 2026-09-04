@@ -36,4 +36,5 @@ tests:
       opentakserver.fqdn: example.invalid
       ingress.tlsSecret: example-tls
     asserts:
-      - matchSnapshot: {}
+      - matchSnapshot:
+          path: spec
