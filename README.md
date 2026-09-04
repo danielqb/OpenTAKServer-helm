@@ -12,7 +12,25 @@ their official upstream images — see the notes below.
 
 ## TL;DR
 
+This chart is published (public, no login needed) to
+`oci://ghcr.io/danielqb/charts/opentakserver` on every push to `main` that
+touches `Chart.yaml`/`values.yaml`/`templates/**`
+(`.github/workflows/publish-chart.yml`, triggered by a `chart-v*` tag - see
+that workflow for how the tag maps to a chart version). Install straight
+from there, no local checkout needed:
+
 ```console
+helm install ots oci://ghcr.io/danielqb/charts/opentakserver --version 0.1.0 \
+  --namespace opentakserver --create-namespace \
+  --set opentakserver.fqdn=tak.example.com \
+  --set ingress.certManager.enabled=true \
+  --set ingress.certManager.clusterIssuer=letsencrypt-prod
+```
+
+Or from a local checkout:
+
+```console
+git clone https://github.com/danielqb/OpenTAKServer-helm.git && cd OpenTAKServer-helm
 helm dependency build
 helm install ots . \
   --namespace opentakserver --create-namespace \
@@ -23,6 +41,12 @@ helm install ots . \
 
 Then log in to `https://tak.example.com` with **administrator / password** and change
 the password immediately.
+
+There's no image to build for this chart itself - every container comes
+from an upstream image (`ghcr.io/brian7704/*`, `bluenviron/mediamtx`,
+`nginxinc/nginx-unprivileged`, `postgis/postgis`, `library/rabbitmq`); see
+"Database and broker" below for why PostGIS/RabbitMQ are first-party
+StatefulSets rather than Bitnami subcharts.
 
 ## Architecture
 
