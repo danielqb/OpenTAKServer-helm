@@ -12,7 +12,7 @@ renders a Helm test pod against the API service:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: opentakserver
         app.kubernetes.io/version: 1.7.13
-        helm.sh/chart: opentakserver-0.1.0
+        helm.sh/chart: opentakserver-0.1.1
       name: release-name-opentakserver-test-connection
       namespace: NAMESPACE
     spec:
