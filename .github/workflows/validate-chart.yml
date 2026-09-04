@@ -78,3 +78,36 @@ jobs:
           expect_reject "unknown top-level key" --set ingres.enabled=false
           expect_reject "malformed persistence.size" --set-string persistence.size=notasize
           expect_reject "invalid image pullPolicy" --set-string server.image.pullPolicy=Sometimes
+
+  security:
+    name: Security scan (rendered manifests)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Render manifests
+        run: |
+          helm template opentakserver . \
+            --set-string opentakserver.fqdn=example.invalid \
+            --set-string ingress.tlsSecret=example-tls \
+            --output-dir /tmp/opentakserver-rendered
+
+      # This chart references upstream images only (brian7704/*, mediamtx,
+      # nginx-unprivileged, postgis, rabbitmq) rather than building its own,
+      # so there's no image to scan here - only the manifests this chart
+      # itself generates (privileged containers, missing resource limits,
+      # host namespaces, etc.).
+      - name: Scan manifests with Trivy (config/IaC)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: config
+          scan-ref: /tmp/opentakserver-rendered
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
