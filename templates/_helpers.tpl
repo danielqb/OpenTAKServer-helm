@@ -192,6 +192,10 @@ Public FQDN / Ingress hostname
 {{- .Values.ingress.hostname | default .Values.opentakserver.fqdn -}}
 {{- end -}}
 
+{{- define "opentakserver.gateway.hostname" -}}
+{{- .Values.gateway.hostname | default .Values.ingress.hostname | default .Values.opentakserver.fqdn -}}
+{{- end -}}
+
 {{/*
 MediaMTX API address consumed by OpenTAKServer
 */}}
@@ -310,5 +314,17 @@ Validate configuration
 {{- end -}}
 {{- if and .Values.ingress.enabled .Values.ingress.tls (not .Values.ingress.tlsSecret) (not .Values.ingress.certManager.enabled) -}}
 {{- fail "ingress.tls=true requires ingress.tlsSecret or ingress.certManager.enabled" -}}
+{{- end -}}
+{{- if and .Values.gateway.enabled (not (include "opentakserver.gateway.hostname" .)) -}}
+{{- fail "gateway.enabled=true requires gateway.hostname, ingress.hostname, or opentakserver.fqdn to be set" -}}
+{{- end -}}
+{{- if .Values.gateway.enabled -}}
+{{- $hasParent := false -}}
+{{- range .Values.gateway.parentRefs -}}
+{{- if .name -}}{{- $hasParent = true -}}{{- end -}}
+{{- end -}}
+{{- if not $hasParent -}}
+{{- fail "gateway.parentRefs[].name is required when gateway.enabled=true" -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}

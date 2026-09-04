@@ -33,6 +33,12 @@ jobs:
               --set rabbitmq.enabled=false
               --set-string externalRabbitmq.host=rabbitmq.example.invalid
               --set-string externalRabbitmq.password=example
+          - scenario: gateway
+            args: >-
+              --set-string opentakserver.fqdn=example.invalid
+              --set ingress.enabled=false
+              --set gateway.enabled=true
+              --set-string gateway.parentRefs[0].name=example-gateway
     steps:
       - name: Check out source
         uses: actions/checkout@v4

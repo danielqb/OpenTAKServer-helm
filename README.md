@@ -188,6 +188,28 @@ Post-install, settings can also be changed from the Web UI admin panel; OpenTAKS
 persists them to `config.yml` on the data PVC, which then takes precedence over the
 environment variables set by the chart.
 
+### Gateway API
+
+`gateway` is an independent alternative to `ingress` - enable either, both,
+or neither. It carries the same path split as the Ingress (`gateway.apiPaths`
+→ the API service, `/hls`/`/webrtc` → mediamtx when enabled, everything else
+→ the web UI) as one `HTTPRoute` with multiple `rules`. Unlike Ingress, TLS is
+a property of the *Gateway's own listener*, not this route - there's no
+`gateway.tls`/`certManager` here, because a shared Gateway is usually
+provisioned and TLS-terminated by a platform team, not by each app's chart.
+Point `gateway.parentRefs` at an existing listener; this chart never creates
+the `Gateway` resource itself.
+
+```yaml
+gateway:
+  enabled: true
+  hostname: tak.example.com   # falls back to ingress.hostname, then opentakserver.fqdn
+  parentRefs:
+    - name: my-gateway
+      namespace: gateway-infra   # omit to default to this release's namespace
+      sectionName: https         # omit to attach to every listener
+```
+
 ## Parameters
 
 See [`values.yaml`](values.yaml) — every parameter is documented inline with a

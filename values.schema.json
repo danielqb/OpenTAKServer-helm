@@ -157,6 +157,29 @@
       }
     },
 
+    "gateway": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "hostname": { "type": "string" },
+        "path": { "type": "string" },
+        "pathType": { "type": "string" },
+        "apiPaths": { "type": "array", "items": { "type": "string" } },
+        "parentRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "namespace": { "type": "string" },
+              "sectionName": { "type": "string" }
+            }
+          }
+        },
+        "annotations": { "type": "object" }
+      }
+    },
+
     "webui": {
       "type": "object",
       "properties": {

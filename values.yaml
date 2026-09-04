@@ -389,6 +389,34 @@ ingress:
   ## @param ingress.extraRules Additional raw Ingress rules
   extraRules: []
 
+## Gateway API alternative to `ingress` above - independent toggle, so both,
+## either, or neither can be enabled at once. Unlike Ingress, TLS is a
+## property of the Gateway's own listener, not this chart's HTTPRoute - point
+## `gateway.parentRefs` at a listener your cluster operator already terminates
+## TLS on (or a plaintext one, if that's the setup) rather than setting
+## anything TLS-related here.
+gateway:
+  ## @param gateway.enabled Create an HTTPRoute for the web UI / REST API
+  enabled: false
+  ## @param gateway.hostname Hostname (defaults to ingress.hostname, then opentakserver.fqdn, when unset)
+  hostname: ""
+  ## @param gateway.path Base path for the web UI
+  path: /
+  ## @param gateway.pathType HTTPRoute path match type for gateway.path: PathPrefix | Exact | RegularExpression
+  pathType: PathPrefix
+  ## @param gateway.apiPaths Extra path prefixes routed to the API service instead of the web UI (PathPrefix match)
+  apiPaths:
+    - /api
+    - /socket.io
+    - /Marti
+  ## @param gateway.parentRefs [array] Gateway(s) this HTTPRoute attaches to - at minimum `name` is required. `namespace` defaults to this release's namespace if unset; `sectionName` targets one listener on a multi-listener Gateway.
+  parentRefs:
+    - name: ""
+      # namespace: ""
+      # sectionName: ""
+  ## @param gateway.annotations Additional annotations for the HTTPRoute
+  annotations: {}
+
 ## @section Web UI (ghcr.io/brian7704/opentakserver-ui)
 ##
 webui:
