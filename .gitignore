@@ -1,15 +1,85 @@
-# Local test artifacts
-*.tgz
-/kind-values*.yaml
-/.env
-/.codebase-memory/
+# ============ SECRETS (CRITICAL) ============
+.env
+.env.local
+*.pem
+*.key
+*.crt
+*.pfx
 
-# OS / editor cruft
+# Kubernetes/kubeconfig files (secrets!)
+kubeconfig
+kubeconfig-*
+*.kubeconfig
+
+# ============ HELM ============
+# Helm dependencies
+charts/*/Chart.lock
+charts/*/requirements.lock
+Chart.lock
+requirements.lock
+
+# Helm template outputs
+*-rendered/
+*-values/
+*.tgz
+*.tar.gz
+/tmp/helm/
+
+# Helm test outputs
+helm-test-*
+
+# Local test artifacts
+/kind-values*.yaml
+
+# ============ DOCKER ============
+# Docker build outputs
+docker-compose.override.yml
+docker-sync.yml
+.dockerignore.bak
+docker_build_*
+
+# ============ KUBERNETES ============
+# Rendered K8s manifests
+*.yaml.rendered
+*.yml.rendered
+kustomization.yaml.rendered
+manifests/
+rendered/
+
+# Helm values with secrets
+values-*.yaml
+values-prod.yaml
+values-staging.yaml
+values-local.yaml
+
+# ============ CODEBASE MEMORY / ANALYSIS ============
+.codebase-memory/
+.codebase-memory.db
+.codebase-memory.db.zst
+graph.db*
+
+# ============ OS / EDITOR ============
 .DS_Store
-*.swp
-*~
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
 .vscode/
 .idea/
+.code-workspace
+*.sublime-workspace
 
-# CI-generated helm template output
-*-rendered/
+# ============ TEMPORARY FILES ============
+tmp/
+temp/
+logs/
+*.log
+*.bak
+*.backup
+*~
+*.swp
+*.swo
