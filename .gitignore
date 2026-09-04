@@ -10,3 +10,6 @@
 *~
 .vscode/
 .idea/
+
+# CI-generated helm template output
+*-rendered/
