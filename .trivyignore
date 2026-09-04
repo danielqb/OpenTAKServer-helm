@@ -1,0 +1,10 @@
+# KSV-0014 (readOnlyRootFilesystem): every stateful container in this chart
+# (postgresql, rabbitmq, mediamtx, and the opentakserver/cot-parser/
+# eud-handler/eud-handler-ssl/webui containers) currently runs with a
+# writable root filesystem - none of them have been individually verified to
+# still work with it locked down (data dirs, temp files, config
+# regeneration). This is accepted technical debt, not a false positive or a
+# deliberate design choice like a sibling Helm chart's KSV-0014 exception -
+# revisit as a dedicated hardening pass, container by container, with real
+# testing per container rather than flipping the flag chart-wide.
+KSV-0014

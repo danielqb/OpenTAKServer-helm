@@ -53,7 +53,7 @@ jobs:
 
       - name: Install Helm unit-test plugin
         if: matrix.scenario == 'default-tls'
-        uses: helm-unittest/helm-unittest-action@v2.0.0
+        uses: d3adb5/helm-unittest-action@v2.5.1
 
       - name: Run Helm unit tests
         if: matrix.scenario == 'default-tls'
