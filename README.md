@@ -46,10 +46,11 @@ helm install ots . \
 Then log in to `https://tak.example.com` with **administrator / password** and change
 the password immediately.
 
-There's no image to build for this chart itself. The OpenTAKServer image is
-`ghcr.io/danielqb/opentakserver` (the atalaya fork); everything else is an
-upstream image (`bluenviron/mediamtx`, `nginxinc/nginx-unprivileged`,
-`postgis/postgis`, `library/rabbitmq`, `ghcr.io/brian7704/opentakserver-ui`).
+There's no image to build for this chart itself. The OpenTAKServer server
+(`ghcr.io/danielqb/opentakserver`) and web UI (`ghcr.io/danielqb/opentakserver-ui`)
+come from the atalaya forks, pinned by digest; the rest are upstream images
+(`bluenviron/mediamtx`, `nginxinc/nginx-unprivileged`, `postgis/postgis`,
+`library/rabbitmq`).
 See "Database and broker" below for why PostGIS/RabbitMQ are first-party
 StatefulSets rather than Bitnami subcharts.
 
@@ -82,7 +83,7 @@ Deployed separately:
 
 | Component    | Kind        | Notes                                                        |
 |--------------|-------------|-------------------------------------------------------------|
-| Web UI       | Deployment  | `ghcr.io/brian7704/opentakserver-ui`, stateless, scalable  |
+| Web UI       | Deployment  | `ghcr.io/danielqb/opentakserver-ui` (fork, UI `v1.7.5`), stateless, scalable |
 | PostGIS      | StatefulSet | `postgis/postgis` — **required**, plain PostgreSQL will not work |
 | RabbitMQ     | StatefulSet | official `rabbitmq` image with the MQTT plugin + HTTP auth backend |
 

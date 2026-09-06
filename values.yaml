@@ -448,8 +448,13 @@ gateway:
   ## @param gateway.extraRules [array] Additional raw HTTPRoute rules appended after the chart's own
   extraRules: []
 
-## @section Web UI (ghcr.io/brian7704/opentakserver-ui)
+## @section Web UI (ghcr.io/danielqb/opentakserver-ui)
 ##
+## The atalaya fork's image (danielqb/OpenTAKServer-UI, branch `atalaya-1.7.5`),
+## built from the UI's `v1.7.5` release tag - the newest UI release, aligned
+## with server 1.7.13. Upstream publishes no UI image of its own; the one the
+## chart used, `ghcr.io/brian7704/opentakserver-ui:master`, is a mutable
+## unversioned tag assembled by a third repo.
 webui:
   ## @param webui.enabled Deploy the OpenTAKServer web UI
   enabled: true
@@ -459,11 +464,12 @@ webui:
     ## @param webui.image.registry Web UI image registry
     registry: ghcr.io
     ## @param webui.image.repository Web UI image repository
-    repository: brian7704/opentakserver-ui
-    ## @param webui.image.tag Web UI image tag (the project currently only publishes `master`)
-    tag: master
-    ## @param webui.image.digest Web UI image digest
-    digest: ""
+    repository: danielqb/opentakserver-ui
+    ## @param webui.image.tag Web UI image tag
+    tag: "1.7.5"
+    ## @param webui.image.digest Web UI image digest, takes precedence over tag when set
+    ## Pinned to the atalaya fork's 1.7.5 build; bump tag+digest together.
+    digest: "sha256:bffb3df08efb3fe672e6145c2c0e4a3c5c2e1dc5ce53babce33f43d3b6cc77b3"
     ## @param webui.image.pullPolicy Web UI image pull policy
     pullPolicy: IfNotPresent
     ## @param webui.image.pullSecrets Web UI image pull secrets

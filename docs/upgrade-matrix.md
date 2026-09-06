@@ -23,6 +23,15 @@ To move to a new OpenTAKServer release:
    matching `server.cotParser/eudHandler/eudHandlerSsl.image.digest`), then
    `appVersion` and the chart `version`.
 
+## Web UI
+
+`webui` runs `ghcr.io/danielqb/opentakserver-ui`, built from the UI's own release
+tag ([`danielqb/OpenTAKServer-UI`](https://github.com/danielqb/OpenTAKServer-UI),
+branch `atalaya-1.7.5`). The UI versions independently of the server (the latest
+UI release is `v1.7.5`; the server is `1.7.13`). Upstream publishes no UI image.
+Same flow to bump: cut `atalaya-<uiversion>` from the upstream UI tag, push
+`atalaya-v<uiversion>`, then bump `webui.image.tag` + `webui.image.digest` here.
+
 Before upgrading:
 
 1. Back up all PVCs and verify the restore procedure.

@@ -6,7 +6,7 @@ description: |
   parser, EUD handlers (TCP/SSL), the web UI, MediaMTX for video, RabbitMQ and a
   PostGIS database. Chart conventions follow the Bitnami common library.
 type: application
-version: 0.1.5
+version: 0.1.6
 # appVersion tracks the OpenTAKServer release every OTS container runs. All of
 # them (server, cot-parser, eud-handler, eud-handler-ssl) share one image -
 # the atalaya fork's ghcr.io/danielqb/opentakserver, built from this tag -
