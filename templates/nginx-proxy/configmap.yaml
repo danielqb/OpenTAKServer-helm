@@ -70,8 +70,16 @@ data:
       server_name {{ $fqdn }};
       client_max_body_size {{ $body }};
 
+      {{- if .Values.nginxProxy.enrollmentCertificate.existingSecret }}
+      # ATAK/iTAK's trust store only accepts Let's Encrypt/DigiCert roots
+      # here (see nginxProxy.enrollmentCertificate in values.yaml) -- server
+      # identity only, client-cert validation elsewhere is untouched.
+      ssl_certificate /etc/nginx/enroll-cert/{{ .Values.nginxProxy.enrollmentCertificate.certKey }};
+      ssl_certificate_key /etc/nginx/enroll-cert/{{ .Values.nginxProxy.enrollmentCertificate.keyKey }};
+      {{- else }}
       ssl_certificate {{ $data }}/ca/certs/opentakserver/opentakserver.pem;
       ssl_certificate_key {{ $data }}/ca/certs/opentakserver/opentakserver.nopass.key;
+      {{- end }}
 
       location / { return 403; }
 

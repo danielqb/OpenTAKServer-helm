@@ -6,7 +6,7 @@ description: |
   parser, EUD handlers (TCP/SSL), the web UI, MediaMTX for video, RabbitMQ and a
   PostGIS database. Chart conventions follow the Bitnami common library.
 type: application
-version: 0.1.1
+version: 0.1.2
 # appVersion tracks the OpenTAKServer release the default image tags point to.
 appVersion: "1.7.13"
 keywords:

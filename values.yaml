@@ -611,6 +611,26 @@ nginxProxy:
     ## @param nginxProxy.service.mqttsPort Published MQTTS port
     mqttsPort: 8883
 
+  ## ATAK/iTAK's built-in trust store only accepts Let's Encrypt or DigiCert
+  ## roots for the certificate-enrollment TLS handshake (the QR/quick-connect
+  ## flow) - the CA this chart auto-generates for 8443/8446/8883 is rejected
+  ## outright with "TAK Server's Identity Could Not Be Verified" before
+  ## enrollment can even start. See
+  ## https://docs.opentakserver.io/lets_encrypt.html and OpenTAKServer's own
+  ## reference docker-compose (Traefik dynamic config, ots-certs.yaml):
+  ## both confirm only the enrollment vhost (8446) needs an externally
+  ## trusted certificate - Marti (8443) and MQTTS (8883) keep the
+  ## internal CA because they require mutual-TLS client-certificate
+  ## validation against it (`ssl_client_certificate`/`ssl_verify_client`,
+  ## untouched by this setting).
+  enrollmentCertificate:
+    ## @param nginxProxy.enrollmentCertificate.existingSecret Existing Secret (type kubernetes.io/tls) with the enrollment vhost's server certificate/key (e.g. issued by cert-manager). Empty keeps the auto-generated internal CA certificate.
+    existingSecret: ""
+    ## @param nginxProxy.enrollmentCertificate.certKey Key in existingSecret holding the certificate (fullchain)
+    certKey: tls.crt
+    ## @param nginxProxy.enrollmentCertificate.keyKey Key in existingSecret holding the private key
+    keyKey: tls.key
+
 ## @section ServiceAccount and RBAC
 ##
 serviceAccount:
