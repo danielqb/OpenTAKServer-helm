@@ -326,6 +326,11 @@ spec:
               readOnly: true
             - name: nginx-tmp
               mountPath: /tmp
+            {{- if .Values.nginxProxy.enrollmentCertificate.existingSecret }}
+            - name: enroll-cert
+              mountPath: /etc/nginx/enroll-cert
+              readOnly: true
+            {{- end }}
         {{- end }}
         {{- with .Values.server.sidecars }}
         {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
@@ -349,6 +354,11 @@ spec:
             name: {{ include "opentakserver.nginxProxy.fullname" . }}
         - name: nginx-tmp
           emptyDir: {}
+        {{- if .Values.nginxProxy.enrollmentCertificate.existingSecret }}
+        - name: enroll-cert
+          secret:
+            secretName: {{ .Values.nginxProxy.enrollmentCertificate.existingSecret }}
+        {{- end }}
         {{- end }}
         {{- with .Values.server.extraVolumes }}
         {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
