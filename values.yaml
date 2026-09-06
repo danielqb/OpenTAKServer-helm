@@ -416,6 +416,10 @@ gateway:
       # sectionName: ""
   ## @param gateway.annotations Additional annotations for the HTTPRoute
   annotations: {}
+  ## @param gateway.filters [array] Gateway API HTTPRoute filters applied to the OTS API and web UI rules (not the MediaMTX rules). Arbitrary list, rendered as-is - e.g. RequestHeaderModifier, ResponseHeaderModifier, RequestRedirect, URLRewrite, RequestMirror, ExtensionRef.
+  filters: []
+  ## @param gateway.extraRules [array] Additional raw HTTPRoute rules appended after the chart's own
+  extraRules: []
 
 ## @section Web UI (ghcr.io/brian7704/opentakserver-ui)
 ##

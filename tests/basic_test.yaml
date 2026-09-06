@@ -2,6 +2,7 @@ suite: basic chart rendering
 templates:
   - templates/server/service.yaml
   - templates/server/ingress.yaml
+  - templates/server/httproute.yaml
   - templates/tests/test-connection.yaml
 tests:
   - it: renders the API service as ClusterIP
@@ -38,3 +39,45 @@ tests:
     asserts:
       - matchSnapshot:
           path: spec
+
+  - it: applies gateway.filters to the API and web UI rules but not MediaMTX
+    template: templates/server/httproute.yaml
+    set:
+      opentakserver.fqdn: example.invalid
+      ingress.enabled: false
+      gateway.enabled: true
+      gateway.parentRefs[0].name: example-gateway
+      gateway.filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - name: X-Forwarded-Host
+                value: tak.public.invalid
+    asserts:
+      # /api rule
+      - equal:
+          path: spec.rules[0].filters[0].type
+          value: RequestHeaderModifier
+      - equal:
+          path: spec.rules[0].filters[0].requestHeaderModifier.set[0].value
+          value: tak.public.invalid
+      # /hls rule (MediaMTX) has no filters
+      - notExists:
+          path: spec.rules[3].filters
+      # base web UI rule
+      - equal:
+          path: spec.rules[5].filters[0].type
+          value: RequestHeaderModifier
+
+  - it: omits filters from every rule when gateway.filters is unset
+    template: templates/server/httproute.yaml
+    set:
+      opentakserver.fqdn: example.invalid
+      ingress.enabled: false
+      gateway.enabled: true
+      gateway.parentRefs[0].name: example-gateway
+    asserts:
+      - notExists:
+          path: spec.rules[0].filters
+      - notExists:
+          path: spec.rules[5].filters

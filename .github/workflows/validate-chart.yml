@@ -39,6 +39,9 @@ jobs:
               --set ingress.enabled=false
               --set gateway.enabled=true
               --set-string gateway.parentRefs[0].name=example-gateway
+              --set-string gateway.filters[0].type=RequestHeaderModifier
+              --set-string gateway.filters[0].requestHeaderModifier.set[0].name=X-Forwarded-Host
+              --set-string gateway.filters[0].requestHeaderModifier.set[0].value=tak.public.invalid
     steps:
       - name: Check out source
         uses: actions/checkout@v4
