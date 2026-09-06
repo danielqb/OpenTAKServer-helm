@@ -6,12 +6,22 @@ OpenTAKServer release every OTS container runs.
 ## One image for every OTS process
 
 `server`, `cot-parser`, `eud-handler` and `eud-handler-ssl` all run the single
-`ghcr.io/brian7704/opentakserver` image (pinned by digest), each with its own
-command. The dedicated `ots_cot_parser` / `ots_eud_handler[_ssl]` images are not
-used — upstream builds them from a stale `docker` branch, so their `1.7.x` tags
-actually contain OpenTAKServer `1.5.14`. To move to a new OpenTAKServer release,
-bump `server.image.tag` **and** `server.image.digest` together (and the matching
-`server.cotParser/eudHandler/eudHandlerSsl.image.digest`), then `appVersion`.
+`ghcr.io/danielqb/opentakserver` image (pinned by digest), each with its own
+command. This is the **atalaya fork**
+([`danielqb/OpenTAKServer`](https://github.com/danielqb/OpenTAKServer)) built from
+the OpenTAKServer `1.7.13` tag: upstream's own `ghcr.io/brian7704/*` images install
+the code with `pip install git+…@<branch>`, which tracks a moving branch at build
+time — that is why `ghcr.io/brian7704/ots_cot_parser:1.7.13` actually contains
+OpenTAKServer `1.5.14`.
+
+To move to a new OpenTAKServer release:
+
+1. In `danielqb/OpenTAKServer`, cut an `atalaya-<version>` branch from the upstream
+   tag, re-apply the Dockerfile changes if upstream's diverged, and push an
+   `atalaya-v<version>` tag to run the `atalaya-images` workflow.
+2. Here, bump `server.image.tag` **and** `server.image.digest` together (plus the
+   matching `server.cotParser/eudHandler/eudHandlerSsl.image.digest`), then
+   `appVersion` and the chart `version`.
 
 Before upgrading:
 

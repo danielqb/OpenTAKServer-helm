@@ -7,7 +7,7 @@ renders a Helm test pod against the API service:
         command:
           - /bin/sh
           - -c
-        image: ghcr.io/brian7704/opentakserver@sha256:96190757acb799fa9d1e3be50469706610b64fbc9c5c1ed280e55fa6f0b06e4d
+        image: ghcr.io/danielqb/opentakserver@sha256:be348ac743a38075557f7f7eb532e16d5606c08e3001629dc646c99856e2226c
         name: test
         securityContext:
           allowPrivilegeEscalation: false
