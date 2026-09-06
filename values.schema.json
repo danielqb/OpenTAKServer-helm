@@ -176,7 +176,9 @@
             }
           }
         },
-        "annotations": { "type": "object" }
+        "annotations": { "type": "object" },
+        "filters": { "type": "array" },
+        "extraRules": { "type": "array" }
       }
     },
 

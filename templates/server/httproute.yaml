@@ -38,6 +38,9 @@ spec:
         - path:
             type: PathPrefix
             value: {{ . }}
+      {{- with $.Values.gateway.filters }}
+      filters: {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ $svcServer }}
           port: {{ $apiPort }}
@@ -62,6 +65,9 @@ spec:
         - path:
             type: {{ .Values.gateway.pathType }}
             value: {{ .Values.gateway.path }}
+      {{- with .Values.gateway.filters }}
+      filters: {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+      {{- end }}
       backendRefs:
         {{- if .Values.webui.enabled }}
         - name: {{ $svcWebui }}
@@ -70,4 +76,7 @@ spec:
         - name: {{ $svcServer }}
           port: {{ $apiPort }}
         {{- end }}
+    {{- with .Values.gateway.extraRules }}
+    {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
 {{- end }}

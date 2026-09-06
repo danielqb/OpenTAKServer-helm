@@ -210,6 +210,31 @@ gateway:
       sectionName: https         # omit to attach to every listener
 ```
 
+`gateway.filters` is a free-form list of Gateway API `HTTPRouteFilter`
+objects, rendered as-is onto the API and web UI rules (not the MediaMTX
+rules). Use it for anything the spec allows - header rewriting, redirects,
+URL rewrites, request mirroring. One common case: when the route is reached
+through a different hostname than the one OpenTAKServer must advertise in the
+QR codes / data packages it generates (it derives those from the request
+`Host`), pin the forwarded host:
+
+```yaml
+gateway:
+  enabled: true
+  hostname: tak.internal.example      # how clients reach the route
+  filters:
+    - type: RequestHeaderModifier
+      requestHeaderModifier:
+        set:
+          - name: X-Forwarded-Host
+            value: tak.public.example  # what OTS should advertise
+          - name: X-Forwarded-Proto
+            value: https
+```
+
+`gateway.extraRules` appends raw `HTTPRoute` rules after the chart's own, for
+routing paths the chart does not model.
+
 ## Parameters
 
 See [`values.yaml`](values.yaml) — every parameter is documented inline with a
