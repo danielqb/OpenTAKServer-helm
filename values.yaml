@@ -91,7 +91,14 @@ opentakserver:
 ## optionally mediamtx and nginx-proxy). OpenTAKServer is a single-instance application and
 ## cannot be horizontally scaled, so replicaCount is fixed at 1.
 server:
-  ## Main OpenTAKServer API container
+  ## Main OpenTAKServer API container.
+  ##
+  ## This same image is reused for the cot-parser and eud-handler containers
+  ## below (it ships the `cot_parser` / `eud_handler` console scripts too). The
+  ## dedicated `ghcr.io/brian7704/ots_cot_parser` / `ots_eud_handler[_ssl]`
+  ## images are NOT used: upstream builds them from a stale `docker` branch, so
+  ## their `1.7.x` tags actually contain OpenTAKServer 1.5.14. Running every OTS
+  ## process from one image guarantees they are all the same version.
   image:
     ## @param server.image.registry OpenTAKServer image registry
     registry: ghcr.io
@@ -100,7 +107,9 @@ server:
     ## @param server.image.tag OpenTAKServer image tag (immutable tags are recommended)
     tag: 1.7.13
     ## @param server.image.digest OpenTAKServer image digest, takes precedence over tag when set
-    digest: ""
+    ## Pinned because upstream re-pushes `1.7.x` tags without rebuilding; this
+    ## digest is `1.7.13` (1.7.13-post.8+97eed1c). Clear it to track the tag.
+    digest: "sha256:96190757acb799fa9d1e3be50469706610b64fbc9c5c1ed280e55fa6f0b06e4d"
     ## @param server.image.pullPolicy OpenTAKServer image pull policy
     pullPolicy: IfNotPresent
     ## @param server.image.pullSecrets OpenTAKServer image pull secrets
@@ -202,7 +211,8 @@ server:
   ## @param server.sidecars Extra sidecar containers for the server pod
   sidecars: []
 
-  ## CoT parser container (ghcr.io/brian7704/ots_cot_parser)
+  ## CoT parser container. Runs `cot_parser` from the main server image (see the
+  ## note on server.image for why the dedicated ots_cot_parser image is avoided).
   cotParser:
     ## @param server.cotParser.enabled Deploy the CoT parser container
     enabled: true
@@ -210,15 +220,19 @@ server:
       ## @param server.cotParser.image.registry CoT parser image registry
       registry: ghcr.io
       ## @param server.cotParser.image.repository CoT parser image repository
-      repository: brian7704/ots_cot_parser
+      repository: brian7704/opentakserver
       ## @param server.cotParser.image.tag CoT parser image tag
       tag: 1.7.13
-      ## @param server.cotParser.image.digest CoT parser image digest
-      digest: ""
+      ## @param server.cotParser.image.digest CoT parser image digest (keep in sync with server.image.digest)
+      digest: "sha256:96190757acb799fa9d1e3be50469706610b64fbc9c5c1ed280e55fa6f0b06e4d"
       ## @param server.cotParser.image.pullPolicy CoT parser image pull policy
       pullPolicy: IfNotPresent
       ## @param server.cotParser.image.pullSecrets CoT parser image pull secrets
       pullSecrets: []
+    ## @param server.cotParser.command Entrypoint for the CoT parser container
+    command: ["cot_parser"]
+    ## @param server.cotParser.args Args for the CoT parser container
+    args: []
     ## @param server.cotParser.processes Number of parser worker processes (OTS_COT_PARSER_PROCESSES)
     processes: 1
     ## @param server.cotParser.resources Resource requests/limits for the CoT parser container
@@ -228,7 +242,8 @@ server:
         memory: 256Mi
       limits: {}
 
-  ## EUD handler (plain TCP CoT streaming, port 8088) - ghcr.io/brian7704/ots_eud_handler
+  ## EUD handler (plain TCP CoT streaming, port 8088). Runs `eud_handler --no-ssl`
+  ## from the main server image (see the note on server.image).
   eudHandler:
     ## @param server.eudHandler.enabled Deploy the plaintext TCP EUD handler container
     enabled: true
@@ -236,15 +251,19 @@ server:
       ## @param server.eudHandler.image.registry EUD handler image registry
       registry: ghcr.io
       ## @param server.eudHandler.image.repository EUD handler image repository
-      repository: brian7704/ots_eud_handler
+      repository: brian7704/opentakserver
       ## @param server.eudHandler.image.tag EUD handler image tag
       tag: 1.7.13
-      ## @param server.eudHandler.image.digest EUD handler image digest
-      digest: ""
+      ## @param server.eudHandler.image.digest EUD handler image digest (keep in sync with server.image.digest)
+      digest: "sha256:96190757acb799fa9d1e3be50469706610b64fbc9c5c1ed280e55fa6f0b06e4d"
       ## @param server.eudHandler.image.pullPolicy EUD handler image pull policy
       pullPolicy: IfNotPresent
       ## @param server.eudHandler.image.pullSecrets EUD handler image pull secrets
       pullSecrets: []
+    ## @param server.eudHandler.command Entrypoint for the EUD handler container
+    command: ["eud_handler"]
+    ## @param server.eudHandler.args Args for the EUD handler container
+    args: ["--no-ssl"]
     ## @param server.eudHandler.containerPort TCP CoT streaming port
     containerPort: 8088
     ## @param server.eudHandler.resources Resource requests/limits for the EUD handler container
@@ -254,7 +273,8 @@ server:
         memory: 128Mi
       limits: {}
 
-  ## EUD handler SSL (mutual-TLS CoT streaming, port 8089) - ghcr.io/brian7704/ots_eud_handler_ssl
+  ## EUD handler SSL (mutual-TLS CoT streaming, port 8089). Runs `eud_handler --ssl`
+  ## from the main server image (see the note on server.image).
   eudHandlerSsl:
     ## @param server.eudHandlerSsl.enabled Deploy the SSL EUD handler container
     enabled: true
@@ -262,15 +282,19 @@ server:
       ## @param server.eudHandlerSsl.image.registry SSL EUD handler image registry
       registry: ghcr.io
       ## @param server.eudHandlerSsl.image.repository SSL EUD handler image repository
-      repository: brian7704/ots_eud_handler_ssl
+      repository: brian7704/opentakserver
       ## @param server.eudHandlerSsl.image.tag SSL EUD handler image tag
       tag: 1.7.13
-      ## @param server.eudHandlerSsl.image.digest SSL EUD handler image digest
-      digest: ""
+      ## @param server.eudHandlerSsl.image.digest SSL EUD handler image digest (keep in sync with server.image.digest)
+      digest: "sha256:96190757acb799fa9d1e3be50469706610b64fbc9c5c1ed280e55fa6f0b06e4d"
       ## @param server.eudHandlerSsl.image.pullPolicy SSL EUD handler image pull policy
       pullPolicy: IfNotPresent
       ## @param server.eudHandlerSsl.image.pullSecrets SSL EUD handler image pull secrets
       pullSecrets: []
+    ## @param server.eudHandlerSsl.command Entrypoint for the SSL EUD handler container
+    command: ["eud_handler"]
+    ## @param server.eudHandlerSsl.args Args for the SSL EUD handler container
+    args: ["--ssl"]
     ## @param server.eudHandlerSsl.containerPort SSL CoT streaming port
     containerPort: 8089
     ## @param server.eudHandlerSsl.resources Resource requests/limits for the SSL EUD handler container

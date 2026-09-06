@@ -371,6 +371,8 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "image": { "$ref": "#/definitions/image" },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } },
         "processes": { "type": "integer", "minimum": 1 },
         "containerPort": { "$ref": "#/definitions/port" },
         "resources": { "$ref": "#/definitions/resources" }

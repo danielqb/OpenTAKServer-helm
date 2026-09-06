@@ -1,7 +1,19 @@
 # Upgrade matrix
 
 `Chart.yaml` contains the chart version and `appVersion` identifies the
-OpenTAKServer release targeted by the default image tags. Before upgrading:
+OpenTAKServer release every OTS container runs.
+
+## One image for every OTS process
+
+`server`, `cot-parser`, `eud-handler` and `eud-handler-ssl` all run the single
+`ghcr.io/brian7704/opentakserver` image (pinned by digest), each with its own
+command. The dedicated `ots_cot_parser` / `ots_eud_handler[_ssl]` images are not
+used — upstream builds them from a stale `docker` branch, so their `1.7.x` tags
+actually contain OpenTAKServer `1.5.14`. To move to a new OpenTAKServer release,
+bump `server.image.tag` **and** `server.image.digest` together (and the matching
+`server.cotParser/eudHandler/eudHandlerSsl.image.digest`), then `appVersion`.
+
+Before upgrading:
 
 1. Back up all PVCs and verify the restore procedure.
 2. Review upstream OpenTAKServer release notes and database migration changes.

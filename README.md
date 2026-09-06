@@ -55,14 +55,22 @@ socket handlers, a shared data folder). The tightly-coupled processes therefore 
 as containers in **one StatefulSet pod** that shares a single `ReadWriteOnce` PVC
 mounted at `/app/ots`:
 
-| Container         | Image                                   | Purpose                                   |
-|-------------------|-----------------------------------------|-------------------------------------------|
-| `opentakserver`   | `ghcr.io/brian7704/opentakserver`       | REST / CoT / Marti API on `:8081`         |
-| `cot-parser`      | `ghcr.io/brian7704/ots_cot_parser`      | CoT message processing                    |
-| `eud-handler`     | `ghcr.io/brian7704/ots_eud_handler`     | Plaintext TCP CoT streaming `:8088`       |
-| `eud-handler-ssl` | `ghcr.io/brian7704/ots_eud_handler_ssl` | Mutual-TLS CoT streaming `:8089`          |
-| `mediamtx`        | `bluenviron/mediamtx`                   | Video (RTSP/RTMP/HLS/WebRTC/SRT) — sidecar |
-| `nginx-proxy`     | `nginxinc/nginx-unprivileged`           | Optional TAK edge proxy — sidecar         |
+| Container         | Image                                                      | Purpose                                    |
+|-------------------|------------------------------------------------------------|--------------------------------------------|
+| `opentakserver`   | `ghcr.io/brian7704/opentakserver`                          | REST / CoT / Marti API on `:8081`          |
+| `cot-parser`      | `ghcr.io/brian7704/opentakserver` — `cot_parser`           | CoT message processing                     |
+| `eud-handler`     | `ghcr.io/brian7704/opentakserver` — `eud_handler --no-ssl` | Plaintext TCP CoT streaming `:8088`        |
+| `eud-handler-ssl` | `ghcr.io/brian7704/opentakserver` — `eud_handler --ssl`    | Mutual-TLS CoT streaming `:8089`           |
+| `mediamtx`        | `bluenviron/mediamtx`                                      | Video (RTSP/RTMP/HLS/WebRTC/SRT) — sidecar |
+| `nginx-proxy`     | `nginxinc/nginx-unprivileged`                              | Optional TAK edge proxy — sidecar          |
+
+All four OpenTAKServer processes run **one image**, pinned by digest. The
+dedicated `ghcr.io/brian7704/ots_cot_parser` / `ots_eud_handler[_ssl]` images
+are deliberately not used: upstream builds them from a stale `docker` branch, so
+their `1.7.x` tags actually ship OpenTAKServer `1.5.14`. The main
+`opentakserver` image already contains the `cot_parser` and `eud_handler`
+console scripts, so the chart just overrides each sidecar's command
+(`server.cotParser.command`, `server.eudHandler.command` / `.args`, etc.).
 
 Deployed separately:
 
