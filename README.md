@@ -3,7 +3,12 @@
 Helm chart for [OpenTAKServer](https://opentakserver.io) (OTS) — a self-hosted TAK
 server for ATAK / iTAK / WinTAK clients. It packages the full stack described by the
 official [`OpenTAKServer-Docker`](https://github.com/brian7704/OpenTAKServer-Docker)
-compose file, using the official container images published to `ghcr.io/brian7704/*`.
+compose file. The OpenTAKServer and web UI container images are built from their
+release tags in [`danielqb/OpenTAKServer`](https://github.com/danielqb/OpenTAKServer)
+and [`danielqb/OpenTAKServer-UI`](https://github.com/danielqb/OpenTAKServer-UI)
+(branch `helm-1.7.13` / `helm-1.7.5`) because upstream's `ghcr.io/brian7704/*`
+images are built off a moving branch and mislabel their version (see below);
+supporting images (MediaMTX, PostGIS, RabbitMQ, nginx) are the upstream ones.
 
 The chart follows the conventions of the Bitnami [`common`](https://github.com/bitnami/charts/tree/main/bitnami/common)
 library chart (values layout, naming, labels, image and secret helpers), which it pulls as
@@ -42,10 +47,12 @@ helm install ots . \
 Then log in to `https://tak.example.com` with **administrator / password** and change
 the password immediately.
 
-There's no image to build for this chart itself - every container comes
-from an upstream image (`ghcr.io/brian7704/*`, `bluenviron/mediamtx`,
-`nginxinc/nginx-unprivileged`, `postgis/postgis`, `library/rabbitmq`); see
-"Database and broker" below for why PostGIS/RabbitMQ are first-party
+There's no image to build for this chart itself. The OpenTAKServer server
+(`ghcr.io/danielqb/opentakserver`) and web UI (`ghcr.io/danielqb/opentakserver-ui`)
+are built from their release tags (see `docs/upgrade-matrix.md`), pinned by
+digest; the rest are upstream images (`bluenviron/mediamtx`,
+`nginxinc/nginx-unprivileged`, `postgis/postgis`, `library/rabbitmq`).
+See "Database and broker" below for why PostGIS/RabbitMQ are first-party
 StatefulSets rather than Bitnami subcharts.
 
 ## Architecture
@@ -55,20 +62,29 @@ socket handlers, a shared data folder). The tightly-coupled processes therefore 
 as containers in **one StatefulSet pod** that shares a single `ReadWriteOnce` PVC
 mounted at `/app/ots`:
 
-| Container         | Image                                   | Purpose                                   |
-|-------------------|-----------------------------------------|-------------------------------------------|
-| `opentakserver`   | `ghcr.io/brian7704/opentakserver`       | REST / CoT / Marti API on `:8081`         |
-| `cot-parser`      | `ghcr.io/brian7704/ots_cot_parser`      | CoT message processing                    |
-| `eud-handler`     | `ghcr.io/brian7704/ots_eud_handler`     | Plaintext TCP CoT streaming `:8088`       |
-| `eud-handler-ssl` | `ghcr.io/brian7704/ots_eud_handler_ssl` | Mutual-TLS CoT streaming `:8089`          |
-| `mediamtx`        | `bluenviron/mediamtx`                   | Video (RTSP/RTMP/HLS/WebRTC/SRT) — sidecar |
-| `nginx-proxy`     | `nginxinc/nginx-unprivileged`           | Optional TAK edge proxy — sidecar         |
+| Container         | Image                                                     | Purpose                                    |
+|-------------------|-----------------------------------------------------------|--------------------------------------------|
+| `opentakserver`   | `ghcr.io/danielqb/opentakserver`                          | REST / CoT / Marti API on `:8081`          |
+| `cot-parser`      | `ghcr.io/danielqb/opentakserver` — `cot_parser`           | CoT message processing                     |
+| `eud-handler`     | `ghcr.io/danielqb/opentakserver` — `eud_handler --no-ssl` | Plaintext TCP CoT streaming `:8088`        |
+| `eud-handler-ssl` | `ghcr.io/danielqb/opentakserver` — `eud_handler --ssl`    | Mutual-TLS CoT streaming `:8089`           |
+| `mediamtx`        | `bluenviron/mediamtx`                                     | Video (RTSP/RTMP/HLS/WebRTC/SRT) — sidecar |
+| `nginx-proxy`     | `nginxinc/nginx-unprivileged`                             | Optional TAK edge proxy — sidecar          |
+
+All four OpenTAKServer processes run **one image**, pinned by digest —
+`ghcr.io/danielqb/opentakserver`, built from the OpenTAKServer 1.7.13 tag.
+Upstream's `ghcr.io/brian7704/ots_cot_parser` / `ots_eud_handler[_ssl]`
+images are not used: they install the code with `pip install git+…@docker`, a
+branch frozen at `1.5.14`, so their `1.7.x` tags are mislabelled. That one image
+contains the `cot_parser` and `eud_handler` console scripts, so the chart just
+overrides each sidecar's command (`server.cotParser.command`,
+`server.eudHandler.command` / `.args`, etc.).
 
 Deployed separately:
 
 | Component    | Kind        | Notes                                                        |
 |--------------|-------------|-------------------------------------------------------------|
-| Web UI       | Deployment  | `ghcr.io/brian7704/opentakserver-ui`, stateless, scalable  |
+| Web UI       | Deployment  | `ghcr.io/danielqb/opentakserver-ui` (fork, UI `v1.7.5`), stateless, scalable |
 | PostGIS      | StatefulSet | `postgis/postgis` — **required**, plain PostgreSQL will not work |
 | RabbitMQ     | StatefulSet | official `rabbitmq` image with the MQTT plugin + HTTP auth backend |
 

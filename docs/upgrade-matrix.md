@@ -1,7 +1,38 @@
 # Upgrade matrix
 
 `Chart.yaml` contains the chart version and `appVersion` identifies the
-OpenTAKServer release targeted by the default image tags. Before upgrading:
+OpenTAKServer release every OTS container runs.
+
+## One image for every OTS process
+
+`server`, `cot-parser`, `eud-handler` and `eud-handler-ssl` all run the single
+`ghcr.io/danielqb/opentakserver` image (pinned by digest), each with its own
+command. It is built from the OpenTAKServer `1.7.13` tag in
+[`danielqb/OpenTAKServer`](https://github.com/danielqb/OpenTAKServer) (branch
+`helm-1.7.13`, see that branch's `IMAGES.md`): upstream's own
+`ghcr.io/brian7704/*` images install the code with `pip install git+…@<branch>`,
+which tracks a moving branch at build time — that is why
+`ghcr.io/brian7704/ots_cot_parser:1.7.13` actually contains OpenTAKServer `1.5.14`.
+
+To move to a new OpenTAKServer release:
+
+1. In `danielqb/OpenTAKServer`, cut a `helm-<version>` branch from the upstream
+   tag, re-apply the Dockerfile changes if upstream's diverged, and push a
+   `helm-v<version>` tag to run the `publish-images` workflow.
+2. Here, bump `server.image.tag` **and** `server.image.digest` together (plus the
+   matching `server.cotParser/eudHandler/eudHandlerSsl.image.digest`), then
+   `appVersion` and the chart `version`.
+
+## Web UI
+
+`webui` runs `ghcr.io/danielqb/opentakserver-ui`, built from the UI's own release
+tag ([`danielqb/OpenTAKServer-UI`](https://github.com/danielqb/OpenTAKServer-UI),
+branch `helm-1.7.5`). The UI versions independently of the server (the latest UI
+release is `v1.7.5`; the server is `1.7.13`). Upstream publishes no UI image.
+Same flow to bump: cut `helm-<uiversion>` from the upstream UI tag, push
+`helm-v<uiversion>`, then bump `webui.image.tag` + `webui.image.digest` here.
+
+Before upgrading:
 
 1. Back up all PVCs and verify the restore procedure.
 2. Review upstream OpenTAKServer release notes and database migration changes.

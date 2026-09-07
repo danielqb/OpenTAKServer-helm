@@ -6,7 +6,7 @@
   "properties": {
     "enabled": {
       "type": "boolean",
-      "description": "Unused by this chart's own templates. Allowed here because an umbrella chart's `condition: opentakserver.enabled` mechanism (see e.g. the umbrella chart) passes that same key through into this chart's own value tree as `enabled`."
+      "description": "Unused by this chart's own templates. Allowed here because an umbrella chart's `condition: opentakserver.enabled` mechanism passes that same key through into this chart's own value tree as `enabled`."
     },
     "common": { "type": "object" },
     "global": {
@@ -371,6 +371,8 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "image": { "$ref": "#/definitions/image" },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } },
         "processes": { "type": "integer", "minimum": 1 },
         "containerPort": { "$ref": "#/definitions/port" },
         "resources": { "$ref": "#/definitions/resources" }

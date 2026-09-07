@@ -91,16 +91,27 @@ opentakserver:
 ## optionally mediamtx and nginx-proxy). OpenTAKServer is a single-instance application and
 ## cannot be horizontally scaled, so replicaCount is fixed at 1.
 server:
-  ## Main OpenTAKServer API container
+  ## Main OpenTAKServer API container.
+  ##
+  ## `ghcr.io/danielqb/opentakserver` is built from the OpenTAKServer 1.7.13 tag
+  ## (see docs/upgrade-matrix.md). Upstream's own `ghcr.io/brian7704/*` images
+  ## install the code with `pip install git+…@<branch>`, which tracks a branch
+  ## at build time - so `ghcr.io/brian7704/ots_cot_parser:1.7.13` actually
+  ## ships 1.5.14.
+  ##
+  ## This same image is reused for the cot-parser and eud-handler containers
+  ## below (it ships the `cot_parser` / `eud_handler` console scripts too), so
+  ## every OTS process is guaranteed to be the exact same build.
   image:
     ## @param server.image.registry OpenTAKServer image registry
     registry: ghcr.io
     ## @param server.image.repository OpenTAKServer image repository
-    repository: brian7704/opentakserver
+    repository: danielqb/opentakserver
     ## @param server.image.tag OpenTAKServer image tag (immutable tags are recommended)
     tag: 1.7.13
     ## @param server.image.digest OpenTAKServer image digest, takes precedence over tag when set
-    digest: ""
+    ## Pinned to the 1.7.13 build; bump tag+digest together on upgrade.
+    digest: "sha256:7bef70e560195d7f6ae7428364321fef6923f8f5c824e18587d80f5042698952"
     ## @param server.image.pullPolicy OpenTAKServer image pull policy
     pullPolicy: IfNotPresent
     ## @param server.image.pullSecrets OpenTAKServer image pull secrets
@@ -202,7 +213,8 @@ server:
   ## @param server.sidecars Extra sidecar containers for the server pod
   sidecars: []
 
-  ## CoT parser container (ghcr.io/brian7704/ots_cot_parser)
+  ## CoT parser container. Runs `cot_parser` from the main server image (see the
+  ## note on server.image for why the dedicated ots_cot_parser image is avoided).
   cotParser:
     ## @param server.cotParser.enabled Deploy the CoT parser container
     enabled: true
@@ -210,15 +222,19 @@ server:
       ## @param server.cotParser.image.registry CoT parser image registry
       registry: ghcr.io
       ## @param server.cotParser.image.repository CoT parser image repository
-      repository: brian7704/ots_cot_parser
+      repository: danielqb/opentakserver
       ## @param server.cotParser.image.tag CoT parser image tag
       tag: 1.7.13
-      ## @param server.cotParser.image.digest CoT parser image digest
-      digest: ""
+      ## @param server.cotParser.image.digest CoT parser image digest (keep in sync with server.image.digest)
+      digest: "sha256:7bef70e560195d7f6ae7428364321fef6923f8f5c824e18587d80f5042698952"
       ## @param server.cotParser.image.pullPolicy CoT parser image pull policy
       pullPolicy: IfNotPresent
       ## @param server.cotParser.image.pullSecrets CoT parser image pull secrets
       pullSecrets: []
+    ## @param server.cotParser.command Entrypoint for the CoT parser container
+    command: ["cot_parser"]
+    ## @param server.cotParser.args Args for the CoT parser container
+    args: []
     ## @param server.cotParser.processes Number of parser worker processes (OTS_COT_PARSER_PROCESSES)
     processes: 1
     ## @param server.cotParser.resources Resource requests/limits for the CoT parser container
@@ -228,7 +244,8 @@ server:
         memory: 256Mi
       limits: {}
 
-  ## EUD handler (plain TCP CoT streaming, port 8088) - ghcr.io/brian7704/ots_eud_handler
+  ## EUD handler (plain TCP CoT streaming, port 8088). Runs `eud_handler --no-ssl`
+  ## from the main server image (see the note on server.image).
   eudHandler:
     ## @param server.eudHandler.enabled Deploy the plaintext TCP EUD handler container
     enabled: true
@@ -236,15 +253,19 @@ server:
       ## @param server.eudHandler.image.registry EUD handler image registry
       registry: ghcr.io
       ## @param server.eudHandler.image.repository EUD handler image repository
-      repository: brian7704/ots_eud_handler
+      repository: danielqb/opentakserver
       ## @param server.eudHandler.image.tag EUD handler image tag
       tag: 1.7.13
-      ## @param server.eudHandler.image.digest EUD handler image digest
-      digest: ""
+      ## @param server.eudHandler.image.digest EUD handler image digest (keep in sync with server.image.digest)
+      digest: "sha256:7bef70e560195d7f6ae7428364321fef6923f8f5c824e18587d80f5042698952"
       ## @param server.eudHandler.image.pullPolicy EUD handler image pull policy
       pullPolicy: IfNotPresent
       ## @param server.eudHandler.image.pullSecrets EUD handler image pull secrets
       pullSecrets: []
+    ## @param server.eudHandler.command Entrypoint for the EUD handler container
+    command: ["eud_handler"]
+    ## @param server.eudHandler.args Args for the EUD handler container
+    args: ["--no-ssl"]
     ## @param server.eudHandler.containerPort TCP CoT streaming port
     containerPort: 8088
     ## @param server.eudHandler.resources Resource requests/limits for the EUD handler container
@@ -254,7 +275,8 @@ server:
         memory: 128Mi
       limits: {}
 
-  ## EUD handler SSL (mutual-TLS CoT streaming, port 8089) - ghcr.io/brian7704/ots_eud_handler_ssl
+  ## EUD handler SSL (mutual-TLS CoT streaming, port 8089). Runs `eud_handler --ssl`
+  ## from the main server image (see the note on server.image).
   eudHandlerSsl:
     ## @param server.eudHandlerSsl.enabled Deploy the SSL EUD handler container
     enabled: true
@@ -262,15 +284,19 @@ server:
       ## @param server.eudHandlerSsl.image.registry SSL EUD handler image registry
       registry: ghcr.io
       ## @param server.eudHandlerSsl.image.repository SSL EUD handler image repository
-      repository: brian7704/ots_eud_handler_ssl
+      repository: danielqb/opentakserver
       ## @param server.eudHandlerSsl.image.tag SSL EUD handler image tag
       tag: 1.7.13
-      ## @param server.eudHandlerSsl.image.digest SSL EUD handler image digest
-      digest: ""
+      ## @param server.eudHandlerSsl.image.digest SSL EUD handler image digest (keep in sync with server.image.digest)
+      digest: "sha256:7bef70e560195d7f6ae7428364321fef6923f8f5c824e18587d80f5042698952"
       ## @param server.eudHandlerSsl.image.pullPolicy SSL EUD handler image pull policy
       pullPolicy: IfNotPresent
       ## @param server.eudHandlerSsl.image.pullSecrets SSL EUD handler image pull secrets
       pullSecrets: []
+    ## @param server.eudHandlerSsl.command Entrypoint for the SSL EUD handler container
+    command: ["eud_handler"]
+    ## @param server.eudHandlerSsl.args Args for the SSL EUD handler container
+    args: ["--ssl"]
     ## @param server.eudHandlerSsl.containerPort SSL CoT streaming port
     containerPort: 8089
     ## @param server.eudHandlerSsl.resources Resource requests/limits for the SSL EUD handler container
@@ -421,8 +447,12 @@ gateway:
   ## @param gateway.extraRules [array] Additional raw HTTPRoute rules appended after the chart's own
   extraRules: []
 
-## @section Web UI (ghcr.io/brian7704/opentakserver-ui)
+## @section Web UI (ghcr.io/danielqb/opentakserver-ui)
 ##
+## Built from the UI's `v1.7.5` release tag - the newest UI release (the UI
+## versions independently of the server). Upstream publishes no UI image of its
+## own; the one the chart used, `ghcr.io/brian7704/opentakserver-ui:master`, is
+## a mutable unversioned tag assembled by a third repo. See docs/upgrade-matrix.md.
 webui:
   ## @param webui.enabled Deploy the OpenTAKServer web UI
   enabled: true
@@ -432,11 +462,12 @@ webui:
     ## @param webui.image.registry Web UI image registry
     registry: ghcr.io
     ## @param webui.image.repository Web UI image repository
-    repository: brian7704/opentakserver-ui
-    ## @param webui.image.tag Web UI image tag (the project currently only publishes `master`)
-    tag: master
-    ## @param webui.image.digest Web UI image digest
-    digest: ""
+    repository: danielqb/opentakserver-ui
+    ## @param webui.image.tag Web UI image tag
+    tag: "1.7.5"
+    ## @param webui.image.digest Web UI image digest, takes precedence over tag when set
+    ## Pinned to the 1.7.5 build; bump tag+digest together on upgrade.
+    digest: "sha256:d855afe99df34c69aee08cadc309b64020fa934fb1661eb4c276ec035e702e2b"
     ## @param webui.image.pullPolicy Web UI image pull policy
     pullPolicy: IfNotPresent
     ## @param webui.image.pullSecrets Web UI image pull secrets

@@ -177,6 +177,13 @@ spec:
           {{- if .Values.diagnosticMode.enabled }}
           command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
           args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- with .Values.server.cotParser.command }}
+          command: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.server.cotParser.args }}
+          args: {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- end }}
           env:
             {{- include "opentakserver.commonEnv" . | nindent 12 }}
@@ -204,6 +211,13 @@ spec:
           {{- if .Values.diagnosticMode.enabled }}
           command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
           args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- with .Values.server.eudHandler.command }}
+          command: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.server.eudHandler.args }}
+          args: {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- end }}
           env:
             {{- include "opentakserver.commonEnv" . | nindent 12 }}
@@ -232,6 +246,13 @@ spec:
           {{- if .Values.diagnosticMode.enabled }}
           command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
           args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- with .Values.server.eudHandlerSsl.command }}
+          command: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.server.eudHandlerSsl.args }}
+          args: {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- end }}
           env:
             {{- include "opentakserver.commonEnv" . | nindent 12 }}
